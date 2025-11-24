@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35027.167
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ORAN_Aging", "ORAN_Aging\ORAN_Aging.csproj", "{876F27B3-108F-4E2A-848D-7EFDFD8A0A3A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{876F27B3-108F-4E2A-848D-7EFDFD8A0A3A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{876F27B3-108F-4E2A-848D-7EFDFD8A0A3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{876F27B3-108F-4E2A-848D-7EFDFD8A0A3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{876F27B3-108F-4E2A-848D-7EFDFD8A0A3A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {881C9581-9CE4-460C-8DC1-CA2D6E6C73F2}
+	EndGlobalSection
+EndGlobal

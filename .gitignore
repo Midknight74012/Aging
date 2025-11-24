@@ -1,5 +1,22 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
+﻿# Visual Studio / IDE
+.vs/
+*.user
+*.suo
 
-/ORAN_Aging/.vs/ORAN_Aging/FileContentIndex
+# Build outputs
+bin/
+obj/
+
+# Local logs and generated files
+Log/
+**/Logs/
+*.log
+*.xlsx
+*.env
+*.txt
+
+# Visual Studio folders / caches
+/.vs/
+
+# Misc
+*.user
