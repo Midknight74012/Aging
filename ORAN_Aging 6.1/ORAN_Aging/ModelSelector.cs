@@ -8,6 +8,7 @@ namespace GUI_Template
     {
         public int hours = 0;
         public string comName = "";
+        public string warranty = "";
         string[] invalidPorts = new string[Form1.slots];
         /*private Dictionary<string, string> ModelNames = new Dictionary<string, string>
         {
@@ -16,15 +17,6 @@ namespace GUI_Template
             {"4-port 700/850 MHz LOLO", "SLS-BR04C4ECEX" }
         };*/
 
-        public bool ComboBox1Visible {
-            get { return comboBox1.Visible; }
-            set { comboBox1.Visible = value; }
-        }
-
-        public bool ComboBox1Enabled {
-            get { return comboBox1.Enabled; }
-            set { comboBox1.Enabled = value; }
-        }
         public ModelSelector() {
             InitializeComponent();
             for (int i = 0; i < Form1.slots; i++) {
@@ -50,18 +42,25 @@ namespace GUI_Template
         }
 
         private void button1_Click(object sender, EventArgs e) {
-            if (comboBox2.SelectedItem != null && comboBox2.Text != "Select Comport") {
+            if (comboBox2.SelectedItem != null && comboBox2.Text != "Select Comport" && hours > 0) {
                 try {
                     comName = comboBox2.SelectedItem.ToString();
-                    SerialPort serialPort = new SerialPort(comName);
-                    serialPort.Open();
-                    serialPort.Close();
+                    using (SerialPort serialPort = new SerialPort(comName)) {
+                        serialPort.Open();
+                        serialPort.Close();
+                    }
                     this.Hide();
                 }
                 catch (UnauthorizedAccessException) {
                     MessageBox.Show("Com " + comboBox2.Text + " already open");
                 }
-            } else {
+                catch (Exception ex) {
+                    MessageBox.Show("Cannot open " + comboBox2.Text + ": " + ex.Message);
+                }
+            } else if(hours == 0) {
+                MessageBox.Show("Select the number of hours for testing");
+            }
+            else {
                 this.Hide();
             }
 
@@ -74,17 +73,21 @@ namespace GUI_Template
                 comboBox2.MaxDropDownItems = portNames.Length;
 
             for (int i = 0; i < portNames.Length; i++) {
-
-                SerialPort comPort = new(portNames[i], 115200);
                 try {
-                    comPort.Open();
-                    if (comPort.IsOpen) 
-                    {
-                        comboBox2.Items.Add(portNames[i]);
+                    using (SerialPort comPort = new SerialPort(portNames[i], 115200)) {
+                        comPort.Open();
+                        if (comPort.IsOpen) {
+                            comboBox2.Items.Add(portNames[i]);
+                        }
+                        comPort.Close();
                     }
                 }
-                catch (UnauthorizedAccessException) { }
-                comPort.Close();
+                catch (UnauthorizedAccessException) { 
+                    // Port is already in use by another slot
+                }
+                catch (Exception) { 
+                    // Port unavailable (OperationCanceledException, IOException, etc.) — skip it
+                }
             }  
         }
 

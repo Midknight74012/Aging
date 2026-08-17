@@ -1,4 +1,3 @@
-﻿using Close_the_Port;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Drawing;
@@ -7,7 +6,6 @@ using DocumentFormat.OpenXml.EMMA;
 using DocumentFormat.OpenXml.Office.Word;
 using DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing;
 using DocumentFormat.OpenXml.Vml;
-using DualBandSetup;
 using GUI_Template;
 using Org.BouncyCastle.Asn1.Ocsp;
 using Renci.SshNet;
@@ -17,7 +15,6 @@ using System.Data;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
@@ -45,17 +42,6 @@ namespace ORAN_Aging
         private static readonly Regex boardRegex = new Regex(@"BoardTemp\|\s+([\d\.]+)\|\s+([\d\.]+)\|\s+([\d\.]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex fpgaRegex = new Regex(@"FpgaTemp\|\s+([\d\.]+)\|\s+([\d\.]+)\|\s+([\d\.]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        private static readonly string FtpServer = Environment.GetEnvironmentVariable("FTP_SERVER") ?? "ftp://example.com";
-        private static readonly string FtpUser = Environment.GetEnvironmentVariable("FTP_USER") ?? "REDACTED_USER";
-        private static readonly string FtpPassword = Environment.GetEnvironmentVariable("FTP_PASSWORD") ?? "REDACTED_PASSWORD";
-        private static readonly string UbootPassword = Environment.GetEnvironmentVariable("UBOOT_PASSWORD") ?? "REDACTED_UBOOT";
-        private static readonly string DeviceMgmtPassword = Environment.GetEnvironmentVariable("DEVICE_MGMT_PASSWORD") ?? "REDACTED_MGMT";
-        private static readonly string DeviceRootPassword = Environment.GetEnvironmentVariable("DEVICE_ROOT_PASSWORD") ?? "REDACTED_ROOT";
-        private static readonly string NetworkLogsBase = Environment.GetEnvironmentVariable("NETWORK_LOGS_BASE") ?? @"T:\Test Logs\"; // replace T:\Acme...
-        private static readonly string LocalExcelFolder = Environment.GetEnvironmentVariable("LOCAL_EXCEL_FOLDER") ?? @"C:\OLP File";
-        private static readonly string LocalLogBase = Environment.GetEnvironmentVariable("LOCAL_LOG_BASE") ?? @"C:\Log\";
-        private static readonly string FtpFilePrefix = Environment.GetEnvironmentVariable("FTP_FILE_PREFIX") ?? "Acme_Receiving_"; // left configurable
-
         enum TestStatus
         {
             IsPassing,
@@ -78,13 +64,12 @@ namespace ORAN_Aging
 
             };
 
-        TriBand[] triBand;
-        DualBand[] dualBand;
         LogHandler[] logHandler;
 
         // System.Timers.Timer[] timer;
         AgingTestSlot[] timer;
-        public Form1() {
+        public Form1()
+        {
             InitializeComponent();
             agingGridView.Show();
             AgingGridSetUp(agingGridView, slots);
@@ -130,13 +115,17 @@ namespace ORAN_Aging
         ModelSelector[] modelSelector;
         System.Windows.Forms.ToolTip toolTip = new System.Windows.Forms.ToolTip();
         bool exitisclicked = false;
-        private void MainForm_FormClosing(object sender, FormClosingEventArgs e) {
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
             // Check if the user is trying to close the form
-            if (e.CloseReason == CloseReason.UserClosing && exitisclicked == false) {
+            if (e.CloseReason == CloseReason.UserClosing && exitisclicked == false)
+            {
                 // Cancel the close event, effectively disabling the close button (X)
                 e.Cancel = true;
 
-            } else if (exitisclicked == true) {
+            }
+            else if (exitisclicked == true)
+            {
                 e.Cancel = false;
 
             }
@@ -144,18 +133,21 @@ namespace ORAN_Aging
 
         #region FTP Connection and File Download
 
-        private async Task<DataTable> GetDataAsync(int slot, string serialNumber, RichTextBox logBox) {
-            string ftpServer = FtpServer;
-            string ftpUser = FtpUser;
-            string ftpPassword = FtpPassword;
-            string remoteDirPath = Environment.GetEnvironmentVariable("FTP_REMOTE_DIR") ?? "/receiving";
-            string localDirPath = LocalExcelFolder;
+        private async Task<DataTable> GetDataAsync(int slot, string serialNumber, RichTextBox logBox)
+        {
+            string ftpServer = "sftp.example.com";
+            string ftpUser = "REDACTED_USER";
+            string ftpPassword = "REDACTED_PASSWORD";
+            string remoteDirPath = "/home/REDACTED_USER/receiving";
+            string localDirPath = @"C:\OLP File";
 
-            if (!Directory.Exists(localDirPath)) {
+            if (!Directory.Exists(localDirPath))
+            {
                 Directory.CreateDirectory(localDirPath);
             }
 
-            if (string.IsNullOrEmpty(serialNumber)) {
+            if (string.IsNullOrEmpty(serialNumber))
+            {
                 MessageBox.Show("No serial number entered.");
                 return null;
             }
@@ -169,13 +161,16 @@ namespace ORAN_Aging
             string latestLocalFile = await GetLatestExcelFileAsync(localDirPath);
             DataTable localTable = null;
 
-            if (!string.IsNullOrEmpty(latestLocalFile)) {
+            if (!string.IsNullOrEmpty(latestLocalFile))
+            {
                 localTable = LoadExcelToDataTable(latestLocalFile);
-                if (localTable != null) {
+                if (localTable != null)
+                {
                     var match = localTable.AsEnumerable()
                         .FirstOrDefault(row => row["SERIALNBR"].ToString().Trim().Equals(serialNumber, StringComparison.OrdinalIgnoreCase));
 
-                    if (match != null) {
+                    if (match != null)
+                    {
                         logBox.Invoke(() => {
                             logBox.SelectionColor = Color.Green;
                             logBox.AppendText($"[{DateTime.Now}] Serial number found in local file.\n");
@@ -193,11 +188,13 @@ namespace ORAN_Aging
                 logBox.SelectionColor = Color.Black;
             });
 
-            try {
+            try
+            {
                 Directory.CreateDirectory(localDirPath);
                 await DownloadLatestFileFromFTPAsync(ftpServer, ftpUser, ftpPassword, remoteDirPath, localDirPath, logBox);
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 logBox.Invoke(() => {
                     logBox.SelectionColor = Color.Red;
                     logBox.AppendText($"[{DateTime.Now}] FTP error: {ex.Message}\n");
@@ -207,7 +204,8 @@ namespace ORAN_Aging
             }
 
             string latestFileAfterDownload = await GetLatestExcelFileAsync(localDirPath);
-            if (string.IsNullOrEmpty(latestFileAfterDownload)) {
+            if (string.IsNullOrEmpty(latestFileAfterDownload))
+            {
                 logBox.Invoke(() => {
                     logBox.SelectionColor = Color.Red;
                     logBox.AppendText($"[{DateTime.Now}] No Excel files found in {localDirPath}\n");
@@ -227,26 +225,34 @@ namespace ORAN_Aging
             return newTable;
         }
 
-        private DataTable LoadExcelToDataTable(string excelFilePath) {
-            try {
-                using (var workbook = new XLWorkbook(excelFilePath)) {
+        private DataTable LoadExcelToDataTable(string excelFilePath)
+        {
+            try
+            {
+                using (var workbook = new XLWorkbook(excelFilePath))
+                {
                     var worksheet = workbook.Worksheet(1);
                     DataTable table = new DataTable();
                     bool isFirstRow = true;
 
-                    foreach (var row in worksheet.RowsUsed()) {
-                        if (isFirstRow) {
+                    foreach (var row in worksheet.RowsUsed())
+                    {
+                        if (isFirstRow)
+                        {
                             foreach (var cell in row.Cells())
                                 table.Columns.Add(cell.Value.ToString().Trim());
                             isFirstRow = false;
-                        } else {
+                        }
+                        else
+                        {
                             table.Rows.Add(row.Cells().Select(c => c.Value.ToString().Trim()).ToArray());
                         }
                     }
                     return table;
                 }
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Console.WriteLine("Excel load error: " + ex.Message);
                 return null;
             }
@@ -254,96 +260,95 @@ namespace ORAN_Aging
 
 
         public static async Task DownloadLatestFileFromFTPAsync(
-    string ftpServer, string ftpUser, string ftpPassword,
-    string remoteDirPath, string localDirPath, RichTextBox logBox) {
+    string sftpHost, string sftpUser, string sftpPassword,
+    string remoteDirPath, string localDirPath, RichTextBox logBox)
+        {
             await Task.Run(() => {
-                try {
-                    if (!ftpServer.EndsWith("/")) ftpServer += "/";
-                    if (!remoteDirPath.EndsWith("/")) remoteDirPath += "/";
-                    string fullFtpDir = ftpServer + remoteDirPath;
-
-                    // Regex for Samsung_Receiving_20250808_224831_.xlsx
+                try
+                {
+                    // Regex for Acme_Receiving_20250808_224831_.xlsx
                     Regex filePattern = new Regex(
-    Regex.Escape(FtpFilePrefix) + @"(\d{8})_(\d{6})_\.xlsx",
-    RegexOptions.IgnoreCase
-);
+                        @"Acme_Receiving_(\d{8})_(\d{6})_\.xlsx",
+                        RegexOptions.IgnoreCase
+                    );
 
-                    // Step 1: Get the list of files (fast - only file names)
-                    FtpWebRequest listRequest = (FtpWebRequest)WebRequest.Create(fullFtpDir);
-                    listRequest.Method = WebRequestMethods.Ftp.ListDirectory;
-                    listRequest.Credentials = new NetworkCredential(ftpUser, ftpPassword);
+                    using (var sftpClient = new SftpClient(sftpHost, 22, sftpUser, sftpPassword))
+                    {
+                        sftpClient.Connect();
 
-                    List<string> files = new List<string>();
+                        // Step 1: List files in remote directory
+                        var files = sftpClient.ListDirectory(remoteDirPath)
+                            .Where(f => !f.IsDirectory)
+                            .Select(f => f.Name)
+                            .ToList();
 
-                    using (FtpWebResponse listResponse = (FtpWebResponse)listRequest.GetResponse())
-                    using (StreamReader reader = new StreamReader(listResponse.GetResponseStream())) {
-                        string line;
-                        while ((line = reader.ReadLine()) != null) {
-                            string fileName = IOPath.GetFileName(line.Trim());
-                            if (!string.IsNullOrEmpty(fileName))
-                                files.Add(fileName);
+                        if (files.Count == 0)
+                        {
+                            logBox.Invoke(() => logBox.AppendText($"[{DateTime.Now}] No files found in SFTP directory.\n"));
+                            sftpClient.Disconnect();
+                            return;
                         }
-                    }
 
-                    if (files.Count == 0) {
-                        logBox.Invoke(() => logBox.AppendText($"[{DateTime.Now}] No files found in FTP directory.\n"));
-                        return;
-                    }
+                        // Step 2: Find latest file based on name timestamp
+                        string latestFile = null;
+                        DateTime latestDate = DateTime.MinValue;
 
-                    // Step 2: Find latest file based on name timestamp
-                    string latestFile = null;
-                    DateTime latestDate = DateTime.MinValue;
+                        foreach (string file in files)
+                        {
+                            Match match = filePattern.Match(file);
+                            if (match.Success)
+                            {
+                                string datePart = match.Groups[1].Value; // YYYYMMDD
+                                string timePart = match.Groups[2].Value; // HHMMSS
 
-                    foreach (string file in files) {
-                        Match match = filePattern.Match(file);
-                        if (match.Success) {
-                            string datePart = match.Groups[1].Value; // YYYYMMDD
-                            string timePart = match.Groups[2].Value; // HHMMSS
-
-                            if (DateTime.TryParseExact(
-                                datePart + timePart,
-                                "yyyyMMddHHmmss",
-                                null,
-                                System.Globalization.DateTimeStyles.None,
-                                out DateTime fileDate)) {
-                                if (fileDate > latestDate) {
-                                    latestDate = fileDate;
-                                    latestFile = file;
+                                if (DateTime.TryParseExact(
+                                    datePart + timePart,
+                                    "yyyyMMddHHmmss",
+                                    null,
+                                    System.Globalization.DateTimeStyles.None,
+                                    out DateTime fileDate))
+                                {
+                                    if (fileDate > latestDate)
+                                    {
+                                        latestDate = fileDate;
+                                        latestFile = file;
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (latestFile == null) {
-                        logBox.Invoke(() => logBox.AppendText($"[{DateTime.Now}] No matching files found by pattern.\n"));
-                        return;
-                    }
+                        if (latestFile == null)
+                        {
+                            logBox.Invoke(() => logBox.AppendText($"[{DateTime.Now}] No matching files found by pattern.\n"));
+                            sftpClient.Disconnect();
+                            return;
+                        }
 
-                    // Step 3: Download the latest file
-                    string latestFileUrl = fullFtpDir + latestFile;
-                    string localFilePath = IOPath.Combine(localDirPath, latestFile);
+                        // Step 3: Download the latest file
+                        string remotePath = remoteDirPath.TrimEnd('/') + "/" + latestFile;
+                        string localFilePath = IOPath.Combine(localDirPath, latestFile);
 
-                    Directory.CreateDirectory(localDirPath);
+                        Directory.CreateDirectory(localDirPath);
 
-                    FtpWebRequest downloadRequest = (FtpWebRequest)WebRequest.Create(latestFileUrl);
-                    downloadRequest.Method = WebRequestMethods.Ftp.DownloadFile;
-                    downloadRequest.Credentials = new NetworkCredential(ftpUser, ftpPassword);
+                        using (var localFileStream = new FileStream(localFilePath, FileMode.Create))
+                        {
+                            sftpClient.DownloadFile(remotePath, localFileStream);
+                            logBox.Invoke(() => logBox.AppendText($"[{DateTime.Now}] Downloaded latest file: {latestFile}\n"));
+                        }
 
-                    using (FtpWebResponse downloadResponse = (FtpWebResponse)downloadRequest.GetResponse())
-                    using (Stream responseStream = downloadResponse.GetResponseStream())
-                    using (FileStream localFileStream = new FileStream(localFilePath, FileMode.Create)) {
-                        responseStream.CopyTo(localFileStream);
-                        logBox.Invoke(() => logBox.AppendText($"[{DateTime.Now}] Downloaded latest file: {latestFile}\n"));
+                        sftpClient.Disconnect();
                     }
                 }
-                catch (Exception ex) {
-                    logBox.Invoke(() => logBox.AppendText($"[{DateTime.Now}] FTP Download Error: {ex.Message}\n"));
+                catch (Exception ex)
+                {
+                    logBox.Invoke(() => logBox.AppendText($"[{DateTime.Now}] SFTP Download Error: {ex.Message}\n"));
                 }
             });
         }
 
 
-        private static Task<string> GetLatestExcelFileAsync(string folderPath) {
+        private static Task<string> GetLatestExcelFileAsync(string folderPath)
+        {
             return Task.Run(() => {
                 var directory = new DirectoryInfo(folderPath);
                 var file = directory.GetFiles("*.xlsx")
@@ -357,7 +362,8 @@ namespace ORAN_Aging
 
         #region Grid Setup
 
-        private void AgingGridSetUp(DataGridView grid, int NumOfSlots) {
+        private void AgingGridSetUp(DataGridView grid, int NumOfSlots)
+        {
             testLog = new RichTextBox[NumOfSlots];
             testStop = new bool[NumOfSlots];
             startButton = new DataGridViewButtonCell[NumOfSlots];
@@ -366,20 +372,19 @@ namespace ORAN_Aging
             modelSelector = new ModelSelector[NumOfSlots];
             timeCheck = new string[NumOfSlots];
             relayBoard = new SerialPort[NumOfSlots];
-            triBand = new TriBand[NumOfSlots];
-            dualBand = new DualBand[NumOfSlots];
             logHandler = new LogHandler[NumOfSlots];
             timer = new AgingTestSlot[NumOfSlots];
             //Set each point of the testStop array to false
-            for (int i = 0; i < NumOfSlots; i++) {
+            for (int i = 0; i < NumOfSlots; i++)
+            {
                 testStop[i] = false;
-                triBand[i] = new TriBand();
-                dualBand[i] = new DualBand();
             }
-            for (int i = 1; i <= NumOfSlots; i++) {
+            for (int i = 1; i <= NumOfSlots; i++)
+            {
                 timer[i - 1] = new AgingTestSlot(i, agingGridView);
             }
-            for (int i = 0; i < NumOfSlots; i++) {
+            for (int i = 0; i < NumOfSlots; i++)
+            {
                 relayBoard[i] = new SerialPort();
                 relayBoard[i].PortName = "COM" + (i + 11).ToString(); //Weird, I know, but this is formula is for the fans which would connect to the fan ports. 
                 relayBoard[i].BaudRate = 115200;
@@ -391,7 +396,8 @@ namespace ORAN_Aging
             //    grid.Rows.Add(testInfo[i]);
             //    grid.Rows[i].ReadOnly = true;
             //}
-            for (int i = 0; i < testInfo.Count; i++) {
+            for (int i = 0; i < testInfo.Count; i++)
+            {
                 grid.Rows.Add();
                 grid.Rows[i].Cells[0].Value = testInfo[i];
                 grid.Rows[i].ReadOnly = true;
@@ -401,7 +407,8 @@ namespace ORAN_Aging
             ///Then Add all the columns based on the number of slots given in the method
             grid.Rows.Add("Result");
             grid.Rows.Add("Timer");
-            for (int i = 1; i <= NumOfSlots; i++) {
+            for (int i = 1; i <= NumOfSlots; i++)
+            {
                 grid.Columns.Add(new DataGridViewTextBoxColumn());
                 grid.Rows[0].Cells[i].Value = i;
 
@@ -409,14 +416,16 @@ namespace ORAN_Aging
                 grid.Rows[(int)AgingDataRow.Timer].Cells[i].Style.Font = new Font("Digital-7", 20F, FontStyle.Regular);
                 grid.Rows[(int)AgingDataRow.Timer].Cells[i].Style.ForeColor = Color.DarkGreen;
 
-                for (int j = (int)AgingDataRow.Boot_Up; j < (int)AgingDataRow.Timer; j++) {
+                for (int j = (int)AgingDataRow.Boot_Up; j < (int)AgingDataRow.Timer; j++)
+                {
                     grid.Rows[j].Cells[i] = new DataGridViewImageCell();
                     grid.Rows[j].Cells[i].Value = Image.FromFile(@"Resources\white.png");
                 }
             }
             //First add a row for the buttons then create the clear buttons for the slots
             grid.Rows.Add("Start");
-            for (int i = 1; i <= NumOfSlots; i++) {
+            for (int i = 1; i <= NumOfSlots; i++)
+            {
                 DataGridViewButtonCell btnCell = new DataGridViewButtonCell();
                 grid.Columns[i].Width = (grid.Width / grid.ColumnCount) - 10;
                 btnCell.Value = "Start Aging";
@@ -425,21 +434,24 @@ namespace ORAN_Aging
                 grid.Rows[(int)AgingDataRow.Start_Button_Row].Cells[i] = btnCell;
             }
             //Create Stop Aging buttons for each ecp, but don't display them yet
-            for (int i = 1; i <= NumOfSlots; i++) {
+            for (int i = 1; i <= NumOfSlots; i++)
+            {
                 DataGridViewButtonCell stopBtn = new DataGridViewButtonCell();
                 stopBtn.Value = "Stop Aging";
                 stopButton[i - 1] = stopBtn;
             }
             //First add a row for the buttons then create the clear buttons for the slots
             grid.Rows.Add("Clear");
-            for (int i = 1; i <= NumOfSlots; i++) {
+            for (int i = 1; i <= NumOfSlots; i++)
+            {
                 DataGridViewButtonCell clearCell = new DataGridViewButtonCell();
                 clearCell.Value = "Clear";
                 clearButton[i - 1] = clearCell;
                 grid.Rows[(int)AgingDataRow.Clear_Button_Row].Cells[i] = clearCell;
             }
             //Create an array of RichTextBoxes based on the number of slots
-            for (int i = 1; i <= NumOfSlots; i++) {
+            for (int i = 1; i <= NumOfSlots; i++)
+            {
                 RichTextBox rtb = new RichTextBox();
                 rtb.Name = "testLog" + i.ToString();
                 rtb.Size = agingTestLog.Size;
@@ -447,7 +459,8 @@ namespace ORAN_Aging
                 rtb.BackColor = agingTestLog.BackColor;
                 rtb.ReadOnly = true;
                 rtb.Font = agingTestLog.Font;
-                void rtb_TextChanged(object sender, EventArgs e) {
+                void rtb_TextChanged(object sender, EventArgs e)
+                {
                     rtb.SelectionStart = rtb.Text.Length;
                     rtb.ScrollToCaret();
                 }
@@ -456,7 +469,8 @@ namespace ORAN_Aging
                 this.Controls.Add(testLog[i - 1]);
             }
             //Create a model selector class for each ecp. This will be handy now that I've learned how to use it.
-            for (int i = 0; i < NumOfSlots; i++) {
+            for (int i = 0; i < NumOfSlots; i++)
+            {
                 ModelSelector ms = new ModelSelector();
                 ms.Name = "ms" + i + 1;
                 modelSelector[i] = ms;
@@ -467,20 +481,20 @@ namespace ORAN_Aging
         #endregion
 
         #region Log Builder
-        public List<string> LogBuilder(string serialNumber, string model) {
+        public List<string> LogBuilder(string serialNumber, string model)
+        {
             var list = new List<string>();
             DateTime now = DateTime.Now;
             string date = now.ToString("MM_dd_yyyy__HH_mm_ssfff");
             string fileName = $"{serialNumber}_Aging_{date}.txt";
 
             // Local path
-            string localBase = model switch {
-                "ORAN PCS" => @"C:\Log\VzW_PCS\",
-                "ORAN LOLO" => @"C:\Log\VZW_Lo_Lo\",
-                "FAT LOLO" => @"C:\Log\VZW_Lo_Lo_XL\",
-                "DISH TRI" => @"C:\Log\Dish_Triple\",
-                "DISH DUAL" => @"C:\Log\Dish_Dual\",
-                _ => @"C:\Log\Unknown\"
+            string localBase = model switch
+            {
+                "ORAN PCS" => AppConstants.LogPathPCS,
+                "ORAN LOLO" => AppConstants.LogPathLOLO,
+                "FAT LOLO" => AppConstants.LogPathFATLOLO,
+                _ => AppConstants.LogPathUnknown
             };
 
             Directory.CreateDirectory(localBase);
@@ -490,34 +504,38 @@ namespace ORAN_Aging
             // Network path (T drive)
             var networkPaths = new Dictionary<string, string>
             {
-        {"ORAN PCS", IOPath.Combine(NetworkLogsBase, @"5G RU ORAN\Verizon PCS\Aging\") },
-{"ORAN LOLO", IOPath.Combine(NetworkLogsBase, @"5G RU ORAN\Verizon LOLO\Aging\") },
-{"FAT LOLO", IOPath.Combine(NetworkLogsBase, @"5G RU ORAN\Verizon FAT LOLO\Aging\") },
-{"DISH TRI", IOPath.Combine(NetworkLogsBase, @"5G RU ORAN\Dish TriBand 600-700-850M\Aging\") },
-{"DISH DUAL", IOPath.Combine(NetworkLogsBase, @"5G RU ORAN\Dish DualBand\Aging\") }
-    };
+                {"ORAN PCS", AppConstants.TDriveBasePCS },
+                {"ORAN LOLO", AppConstants.TDriveBaseLOLO },
+                {"FAT LOLO", AppConstants.TDriveBaseFATLOLO }
+            };
 
-            string remoteBase = networkPaths.ContainsKey(model) ? networkPaths[model] : null;
-            if (!string.IsNullOrEmpty(remoteBase)) {
-                string remotePath = IOPath.Combine(remoteBase, fileName);
-                list.Add(remotePath);
-            } else {
+            string networkBase = networkPaths.ContainsKey(model) ? networkPaths[model] : null;
+            if (!string.IsNullOrEmpty(networkBase))
+            {
+                string networkPath = IOPath.Combine(networkBase, fileName);
+                list.Add(networkPath);
+            }
+            else
+            {
                 list.Add(null); // Fallback if model isn't found
             }
 
-            return list; // list[0] = local, list[1] = remote
+            return list; // list[0] = local, list[1] = T: drive network path
         }
         #endregion
 
         #region Loagin Cell
-        private void showLoadingInCell(int row, int col) {
+        private void showLoadingInCell(int row, int col)
+        {
             DataGridViewCell cell = agingGridView.Rows[row].Cells[col];
 
             // Get rectangle on UI thread
             System.Drawing.Rectangle r = agingGridView.GetCellDisplayRectangle(col, row, false);
 
-            if (cell.Tag == null) {
-                PictureBox pb2 = new PictureBox {
+            if (cell.Tag == null)
+            {
+                PictureBox pb2 = new PictureBox
+                {
                     Image = currentTestStatus[TestStatus.IsTesting]
                     /* Image = pbSpin.Image,
                      BackColor = pbSpin.BackColor,
@@ -529,16 +547,18 @@ namespace ORAN_Aging
                 };
                 agingGridView.Rows[row].Cells[col].Value = pb2.Image;
                 cell.Tag = pb2;
-                if(cell.Tag == null) { MessageBox.Show("Nope, still null"); }
+                if (cell.Tag == null) { MessageBox.Show("Nope, still null"); }
             }
         }
 
 
-        private void stopLoadingInCell(int row, int col) {
+        private void stopLoadingInCell(int row, int col)
+        {
             // Retrieve the cell and check if the spinner exists
             DataGridViewCell cell = agingGridView.Rows[row].Cells[col];
 
-            if (cell.Tag != null) {
+            if (cell.Tag != null)
+            {
                 // Remove the spinner control if it exists
                 this.Invoke(new MethodInvoker(delegate {
                     agingGridView.Controls.Remove((PictureBox)cell.Tag);
@@ -550,10 +570,14 @@ namespace ORAN_Aging
             }
         }
 
-        private void repositionSpinners() {
-            foreach (DataGridViewRow row in agingGridView.Rows) {
-                foreach (DataGridViewCell cell in row.Cells) {
-                    if (cell.Tag != null) {
+        private void repositionSpinners()
+        {
+            foreach (DataGridViewRow row in agingGridView.Rows)
+            {
+                foreach (DataGridViewCell cell in row.Cells)
+                {
+                    if (cell.Tag != null)
+                    {
                         PictureBox pb2 = (PictureBox)cell.Tag;
                         System.Drawing.Rectangle r = agingGridView.GetCellDisplayRectangle(cell.RowIndex, cell.ColumnIndex, false);
                         pb2.Location = new System.Drawing.Point(r.X + (r.Width - pb2.Width) / 2, r.Y + (r.Height - pb2.Height) / 2);
@@ -564,9 +588,16 @@ namespace ORAN_Aging
 
         #endregion
 
+        // Currently unused in the active test flow. This fan-relay control logic was built ahead of
+        // a planned feature: aging units in environmental chambers held within a target temperature
+        // range. The chambers aren't in place yet, so this region isn't called anywhere right now,
+        // but it's kept here ready to wire in once that hardware is available.
+        // Note: the 80/70 thresholds below are degrees Celsius, not Fahrenheit.
         #region Fan Control
-        public void FanControls(SerialPort comport, double temp, string logfile, RichTextBox testLog) {
-            if (temp >= 80) {
+        public void FanControls(SerialPort comport, double temp, string logfile, RichTextBox testLog)
+        {
+            if (temp >= 80)
+            {
                 File.AppendAllText(logfile, "Turning on fans");
                 this.Invoke(new MethodInvoker(delegate {
                     testLog.AppendText("Turning on fans");
@@ -580,18 +611,22 @@ namespace ORAN_Aging
                 Byte[] rawBytesToRelayBoard = new Byte[] { Tx, two, three, command, bank, ckSum };
                 Byte[] rawBytesFromRelayBoard = new byte[] { Tx, two, three, ckSum };
                 Byte[] expectedBytes = new byte[] { 170, 1, 85, 0 };
-                if (!comport.IsOpen) {
-                    try {
+                if (!comport.IsOpen)
+                {
+                    try
+                    {
                         comport.Open();
                     }
-                    catch (Exception) {
+                    catch (Exception)
+                    {
                         //File.AppendAllText(logfile, ex.Message);
                     }
                 }
                 try { comport.Write(rawBytesToRelayBoard, 0, rawBytesToRelayBoard.Length); } catch (InvalidOperationException) { }
                 Thread.Sleep(300);
                 try { comport.Read(rawBytesFromRelayBoard, 0, rawBytesFromRelayBoard.Length); } catch (InvalidOperationException) { }
-                if (rawBytesFromRelayBoard == expectedBytes) {
+                if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes))
+                {
                     // File.AppendAllText(logfile, "** Sucessfully sent On command to relay board" + Environment.NewLine);
                 }
                 rawBytesToRelayBoard[0] = 170;
@@ -607,11 +642,14 @@ namespace ORAN_Aging
                 try { comport.Write(rawBytesToRelayBoard, 0, rawBytesToRelayBoard.Length); } catch (InvalidOperationException) { }
                 Thread.Sleep(300);
                 try { comport.Read(rawBytesFromRelayBoard, 0, rawBytesFromRelayBoard.Length); } catch (InvalidOperationException) { }
-                if (rawBytesFromRelayBoard == expectedBytes) {
+                if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes))
+                {
                     // File.AppendAllText(logfile, "** Relay Board reports all relays are on" + Environment.NewLine);
                 }
                 Thread.Sleep(1000);
-            } else if (temp < 70) {
+            }
+            else if (temp < 70)
+            {
                 //File.AppendAllText(logfile, "** Turning Fans Off" + Environment.NewLine);
                 Tx = 170; // bytes to send - This seems to always be 170
                 two = 3; // seems to always be 3
@@ -626,7 +664,7 @@ namespace ORAN_Aging
                 try { comport.Write(rawBytesToRelayBoard, 0, rawBytesToRelayBoard.Length); } catch (InvalidOperationException) { }
                 Thread.Sleep(300);
                 try { comport.Read(rawBytesFromRelayBoard, 0, rawBytesFromRelayBoard.Length); } catch (InvalidOperationException) { }
-                if (rawBytesFromRelayBoard == expectedBytes) // C# can't do array comps.
+                if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes)) // C# can't do array comps.
                 {
                     //File.AppendAllText(logfile, "** Sucessfully sent Off command to relay board" + Environment.NewLine);
                 }
@@ -640,18 +678,21 @@ namespace ORAN_Aging
                 expectedBytes[1] = 1;
                 expectedBytes[2] = 0;
                 expectedBytes[3] = 171;
-                if (!comport.IsOpen) {
-                    try {
+                if (!comport.IsOpen)
+                {
+                    try
+                    {
                         comport.Open();
                     }
-                    catch (Exception) {
+                    catch (Exception)
+                    {
                         // File.AppendAllText(logfile, ex.Message);
                     }
                 }
                 try { comport.Write(rawBytesToRelayBoard, 0, rawBytesToRelayBoard.Length); } catch (InvalidOperationException) { }
                 Thread.Sleep(300);
                 try { comport.Read(rawBytesFromRelayBoard, 0, rawBytesFromRelayBoard.Length); } catch (InvalidOperationException) { }
-                if (rawBytesFromRelayBoard == expectedBytes) // C# can't do array comps. 
+                if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes)) // C# can't do array comps. 
                 {
                     // File.AppendAllText(logfile, "** Relay Board reports all relays are on" + Environment.NewLine);
                 }
@@ -659,7 +700,8 @@ namespace ORAN_Aging
                 Thread.Sleep(1000);
             }
         }
-        public void TurnOffFan(SerialPort comport, RichTextBox testLog) {
+        public void TurnOffFan(SerialPort comport, RichTextBox testLog)
+        {
             //File.AppendAllText(logfile, "** Turning Fans Off" + Environment.NewLine);
             this.Invoke(new MethodInvoker(delegate {
                 testLog.AppendText("Fan turned Off");
@@ -677,7 +719,7 @@ namespace ORAN_Aging
             try { comport.Write(rawBytesToRelayBoard, 0, rawBytesToRelayBoard.Length); } catch (InvalidOperationException) { }
             Thread.Sleep(300);
             try { comport.Read(rawBytesFromRelayBoard, 0, rawBytesFromRelayBoard.Length); } catch (InvalidOperationException) { }
-            if (rawBytesFromRelayBoard == expectedBytes) // C# can't do array comps.
+            if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes)) // C# can't do array comps.
             {
                 //File.AppendAllText(logfile, "** Sucessfully sent Off command to relay board" + Environment.NewLine);
             }
@@ -691,25 +733,29 @@ namespace ORAN_Aging
             expectedBytes[1] = 1;
             expectedBytes[2] = 0;
             expectedBytes[3] = 171;
-            if (!comport.IsOpen) {
-                try {
+            if (!comport.IsOpen)
+            {
+                try
+                {
                     comport.Open();
                 }
-                catch (Exception) {
+                catch (Exception)
+                {
                     // File.AppendAllText(logfile, ex.Message);
                 }
             }
             try { comport.Write(rawBytesToRelayBoard, 0, rawBytesToRelayBoard.Length); } catch (InvalidOperationException) { }
             Thread.Sleep(300);
             try { comport.Read(rawBytesFromRelayBoard, 0, rawBytesFromRelayBoard.Length); } catch (InvalidOperationException) { }
-            if (rawBytesFromRelayBoard == expectedBytes) // C# can't do array comps. 
+            if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes)) // C# can't do array comps. 
             {
                 // File.AppendAllText(logfile, "** Relay Board reports all relays are on" + Environment.NewLine);
             }
             comport.Close();
             Thread.Sleep(1000);
         }
-        public void TurnOnFan(SerialPort comport, RichTextBox testLog) {
+        public void TurnOnFan(SerialPort comport, RichTextBox testLog)
+        {
             //File.AppendAllText(logfile, "** Turning Fans On" + Environment.NewLine);
             this.Invoke(new MethodInvoker(delegate {
                 testLog.AppendText("Fan turned ON");
@@ -724,18 +770,22 @@ namespace ORAN_Aging
             Byte[] rawBytesToRelayBoard = new Byte[] { Tx, two, three, command, bank, ckSum };
             Byte[] rawBytesFromRelayBoard = new byte[] { Tx, two, three, ckSum };
             Byte[] expectedBytes = new byte[] { 170, 1, 85, 0 };
-            if (!comport.IsOpen) {
-                try {
+            if (!comport.IsOpen)
+            {
+                try
+                {
                     comport.Open();
                 }
-                catch (Exception) {
+                catch (Exception)
+                {
                     //File.AppendAllText(logfile, ex.Message);
                 }
             }
             try { comport.Write(rawBytesToRelayBoard, 0, rawBytesToRelayBoard.Length); } catch (InvalidOperationException) { }
             Thread.Sleep(300);
             try { comport.Read(rawBytesFromRelayBoard, 0, rawBytesFromRelayBoard.Length); } catch (InvalidOperationException) { }
-            if (rawBytesFromRelayBoard == expectedBytes) {
+            if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes))
+            {
                 // File.AppendAllText(logfile, "** Sucessfully sent On command to relay board" + Environment.NewLine);
             }
             rawBytesToRelayBoard[0] = 170;
@@ -751,7 +801,8 @@ namespace ORAN_Aging
             try { comport.Write(rawBytesToRelayBoard, 0, rawBytesToRelayBoard.Length); } catch (InvalidOperationException) { }
             Thread.Sleep(300);
             try { comport.Read(rawBytesFromRelayBoard, 0, rawBytesFromRelayBoard.Length); } catch (InvalidOperationException) { }
-            if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes)) {
+            if (rawBytesFromRelayBoard.SequenceEqual(expectedBytes))
+            {
 
             }
             comport.Close();
@@ -760,22 +811,27 @@ namespace ORAN_Aging
         #endregion
 
         #region Interrupt
-        private void SendInterruptCommand(SerialPort port) {
+        private void SendInterruptCommand(SerialPort port)
+        {
             byte[] interrupt = new byte[] { 0x03 };
             port.Write(interrupt, 0, 1);
         }
         #endregion
 
         #region ReadPort
-        private string ReadPort(SerialPort port) {
+        private string ReadPort(SerialPort port)
+        {
             StringBuilder reader = new StringBuilder(); ;
-            try {
-                if (!port.IsOpen) {
+            try
+            {
+                if (!port.IsOpen)
+                {
                     port.Open();
                 }
                 reader.Append(port.ReadExisting());
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Task.Run(() => { MessageBox.Show("Communication issues with com port " + port.PortName + "\n" + ex.ToString()); });
                 reader.Append("!fail!");
             }
@@ -784,24 +840,59 @@ namespace ORAN_Aging
         #endregion
 
         #region SendPortCommand
-        private string SendPortCommand(SerialPort port, string command, string endPoint) {
+        // Strings that indicate the session was lost and a re-login is needed
+        private static readonly string[] SessionLostIndicators = {
+            "Waiting for a stable CPRI Link",
+            "WARNING: Unauthorized access to this system is forbidden",
+            "Login incorrect",
+            "login:"
+        };
+
+        private string SendPortCommand(SerialPort port, string command, string endPoint, string model, int maxRetries = 2)
+        {
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                string result = SendPortCommandInternal(port, command, endPoint);
+
+                // Check if the response indicates a lost session
+                if (attempt < maxRetries && IsSessionLost(result))
+                {
+                    Console.WriteLine($"Session lost detected (attempt {attempt + 1}): re-logging in...");
+                    bool reloggedIn = AttemptReLogin(port, model);
+                    if (!reloggedIn)
+                    {
+                        Console.WriteLine("Re-login failed. Returning fail.");
+                        return "!fail!";
+                    }
+                    // After successful re-login, retry the original command
+                    continue;
+                }
+
+                return result;
+            }
+
+            return "!fail!";
+        }
+
+        private string SendPortCommandInternal(SerialPort port, string command, string endPoint)
+        {
             StringBuilder reader = new StringBuilder();
             TimeSpan timeout = TimeSpan.FromSeconds(15);
             DateTime startTime = DateTime.UtcNow;
 
-            try {
+            try
+            {
                 if (!port.IsOpen)
                     port.Open();
 
-                port.DiscardOutBuffer();
-                port.DiscardInBuffer();
-                reader.Clear();
+                port.ReadExisting();
 
                 // Send the command once
                 port.WriteLine(command);
 
                 // Loop to read until timeout or end condition is met
-                while (DateTime.UtcNow - startTime < timeout) {
+                while (DateTime.UtcNow - startTime < timeout)
+                {
                     string data = port.ReadExisting();
 
                     if (!string.IsNullOrEmpty(data))
@@ -811,38 +902,130 @@ namespace ORAN_Aging
                     if (reader.ToString().Contains(endPoint) || reader.ToString().Contains("Broken pipe") || reader.ToString().Contains("reset"))
                         break;
 
-                    //// Avoid tight loop, prevent CPU overuse
-                    //await Task.Delay(50);
+                    // Avoid tight loop, prevent CPU overuse
+                    Thread.Sleep(50);
                 }
 
                 // Return result after loop, or "fail" if no response received
                 return reader.Length > 0 ? RemoveAnsiCodes(reader.ToString()) : "!fail!";
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 // Log exception to a file or logging service
-                File.AppendAllTextAsync(@"C:\Test_CTDI\ErrorLog.txt", $"{port.PortName} threw an exception\n\n{ex}\n\n");
+                File.AppendAllTextAsync(@"C:\Test_TechCo\ErrorLog.txt", $"{port.PortName} threw an exception\n\n{ex}\n\n");
                 return "!fail!";
+            }
+        }
+
+        private bool IsSessionLost(string response)
+        {
+            if (string.IsNullOrEmpty(response) || response == "!fail!") return false;
+            foreach (var indicator in SessionLostIndicators)
+            {
+                if (response.Contains(indicator, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to re-login to the unit by sending the standard login sequence.
+        /// Returns true if login was successful (got "root@" prompt).
+        /// </summary>
+        private bool AttemptReLogin(SerialPort port, string model)
+        {
+            try
+            {
+                // Clear any pending data
+                if (!port.IsOpen) port.Open();
+                port.ReadExisting();
+                Thread.Sleep(500);
+
+                // Send Enter to get a fresh prompt
+
+                // Step 1: Send username
+                string result = SendPortCommandInternal(port, "user", "Password:");
+                if (string.IsNullOrEmpty(result) || result == "!fail!") return false;
+
+                // Step 2: Send user password
+                result = SendPortCommandInternal(port, "REDACTED_PASSWORD", "user@");
+                if (string.IsNullOrEmpty(result) || result == "!fail!")
+                {
+                    // Some units may already be at a login prompt, try alternate flow
+                    return false;
+                }
+
+                // Step 3: Switch to superuser
+                result = SendPortCommandInternal(port, "su -", "Password:");
+                if (string.IsNullOrEmpty(result) || result == "!fail!") return false;
+
+                // Step 4: Enter root password
+                result = SendPortCommandInternal(port, "REDACTED_PASSWORD", "root@");
+                if (string.IsNullOrEmpty(result) || result == "!fail!") return false;
+
+                result = SendPortCommandInternal(port, "ushell", "UShell");
+                if (string.IsNullOrEmpty(result) || result == "!fail!") return false;
+
+                switch (model)
+                {
+                    case "ORAN LOLO":
+                        VZ_LOLO vZ_LOLO = new VZ_LOLO();
+                        foreach (string line in vZ_LOLO.setupCommands)
+                        {
+                            result = SendPortCommandInternal(port, line, "UShell");
+                        }
+                        vZ_LOLO = null;
+                        break;
+                    case "ORAN PCS":
+                        VZ_PCS vZ_PCS = new VZ_PCS();
+                        foreach (string line in vZ_PCS.setupCommands)
+                        {
+                            result = SendPortCommandInternal(port, line, "UShell");
+                        }
+                        vZ_PCS = null;
+                        break;
+                    case "FAT LOLO":
+                        FAT_LOLO fat_LOLO = new FAT_LOLO();
+                        foreach (string line in fat_LOLO.setupCommands)
+                        {
+                            result = SendPortCommandInternal(port, line, "UShell");
+                        }
+                        fat_LOLO = null;
+                        break;
+                }
+
+                Console.WriteLine("Re-login successful.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Re-login exception: " + ex.Message);
+                return false;
             }
         }
 
         #endregion
 
         #region Remove AnsiCodes
-        private string RemoveAnsiCodes(string text) {
+        private string RemoveAnsiCodes(string text)
+        {
             return Regex.Replace(text, @"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "");
         }
-        private static (Match, Match) CleanBoardTemp(string text) {
+        private static (Match, Match) CleanBoardTemp(string text)
+        {
             return (boardRegex.Match(text), fpgaRegex.Match(text));
         }
         #endregion
 
         #region Cell Click
-        private void agingGridView_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e) {
+        private void agingGridView_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
+        {
             if (e.ColumnIndex <= 0) return;
 
             this.SuspendLayout();  // Suspend layout updates to prevent flicker during multiple UI changes
 
-            if (e.Button == MouseButtons.Left) {
+            if (e.Button == MouseButtons.Left)
+            {
                 // Update label to show current column index
                 label2.Invoke((MethodInvoker)(() => label2.Text = e.ColumnIndex.ToString()));
 
@@ -880,7 +1063,8 @@ namespace ORAN_Aging
 
         }
 
-        private async void agingGridView_CellClick(object sender, DataGridViewCellEventArgs e) {
+        private async void agingGridView_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
             int cellClicked = e.ColumnIndex;
             int rowClicked = e.RowIndex;
 
@@ -888,10 +1072,13 @@ namespace ORAN_Aging
             if (cellClicked < 0 || rowClicked < 0)
                 return;
 
-            try {
+            try
+            {
                 // Only process if not the first column
-                if (cellClicked > 0) {
-                    switch (rowClicked) {
+                if (cellClicked > 0)
+                {
+                    switch (rowClicked)
+                    {
                         case (int)AgingDataRow.SerialNumber:
                             await HandleSerialNumberClick(cellClicked);
                             break;
@@ -906,26 +1093,30 @@ namespace ORAN_Aging
                     }
                 }
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 //  Exception logging instead of silent swallow
                 MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 // Optionally log: File.AppendAllText("error.log", ex.ToString());
             }
         }
 
-        private async Task HandleSerialNumberClick(int cellClicked) {
+        private async Task HandleSerialNumberClick(int cellClicked)
+        {
             string serialNumber = Microsoft.VisualBasic.Interaction.InputBox(
                 "Enter Serial Number Here",
                 "Serial Number Slot: " + cellClicked
             ).ToUpper().Trim();
 
-            if (serialNumber.Length != 10) {
+            if (serialNumber.Length != 10)
+            {
                 MessageBox.Show("Invalid Serial Number....!", "Slot: " + cellClicked);
                 return;
             }
 
             var excelTable = await GetDataAsync(cellClicked, serialNumber, testLog[cellClicked - 1]);
-            if (excelTable == null) {
+            if (excelTable == null)
+            {
                 MessageBox.Show("Failed to load Excel data.");
                 return;
             }
@@ -936,11 +1127,27 @@ namespace ORAN_Aging
                 .FirstOrDefault(row => row["SERIALNBR"].ToString().Trim()
                     .Equals(serialNumber, StringComparison.OrdinalIgnoreCase));
 
-            if (match != null) {
+            if (match != null)
+            {
                 string partNumber = match["PARTNBR"].ToString().Trim();
                 string model = MapPartNumberToModel(partNumber);
                 agingGridView.Rows[(int)AgingDataRow.Model].Cells[cellClicked].Value = model;
-            } else {
+                string warranty = match["RECVWARRANTY"].ToString().Trim();
+                if (warranty == "V")
+                {
+                    modelSelector[cellClicked - 1].radioButton3.Enabled = false;
+                    modelSelector[cellClicked - 1].radioButton3.Checked = false;
+                    modelSelector[cellClicked - 1].radioButton4.Enabled = false;
+                    modelSelector[cellClicked - 1].radioButton4.Checked = false;
+                }
+                else
+                {
+                    modelSelector[cellClicked - 1].radioButton3.Enabled = true;
+                    modelSelector[cellClicked - 1].radioButton4.Enabled = true;
+                }
+            }
+            else
+            {
                 string partNumberInput = Microsoft.VisualBasic.Interaction.InputBox(
                     "Please Scan Model Number:\n" +
                     "SFG-ARR57201VZ\nSFG-ARR27201VZ\nSFG-ARR26301VZ\nSFG-ARR3J601DI\nSFG-ARR3KM01DI",
@@ -949,29 +1156,36 @@ namespace ORAN_Aging
 
                 string model = MapPartNumberToModel(partNumberInput);
 
-                if (model == "UNKNOWN") {
+                if (model == "UNKNOWN")
+                {
                     MessageBox.Show("Invalid part number entered.");
                     agingGridView.Rows[(int)AgingDataRow.Model].Cells[cellClicked].Value = "Not Found";
-                } else {
+                }
+                else
+                {
                     agingGridView.Rows[(int)AgingDataRow.Model].Cells[cellClicked].Value = model;
                 }
             }
         }
 
-        private async Task HandleStartButtonClick(int cellClicked) {
+        private async Task HandleStartButtonClick(int cellClicked)
+        {
             string modelValue = agingGridView.Rows[(int)AgingDataRow.Model].Cells[cellClicked].Value?.ToString();
-            if (modelValue == "Error") {
+            if (modelValue == "Error")
+            {
                 MessageBox.Show("Need a valid Model");
                 return;
             }
 
-            if (agingGridView.Rows[(int)AgingDataRow.SerialNumber].Cells[cellClicked].Value == null) {
+            if (agingGridView.Rows[(int)AgingDataRow.SerialNumber].Cells[cellClicked].Value == null)
+            {
                 ClearTestCells(cellClicked);
                 ShowMessageSafe("Please scan serial number");
                 return;
             }
 
-            if (agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked].Value?.ToString() == "Stop Aging") {
+            if (agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked].Value?.ToString() == "Stop Aging")
+            {
                 StopTest(cellClicked);
                 return;
             }
@@ -985,15 +1199,17 @@ namespace ORAN_Aging
                 RunTest(cellClicked);
             }, TaskCreationOptions.LongRunning);
 
-            // ✅ Once background test completes, update UI on main thread
+            // ? Once background test completes, update UI on main thread
             this.Invoke((MethodInvoker)(() => {
                 agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked].Value = "Start Aging";
             }));
         }
 
-        private void PrepareTest(int cellClicked) {
+        private void PrepareTest(int cellClicked)
+        {
             // Reset all test-related cells to blank
-            for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++) {
+            for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++)
+            {
                 stopLoadingInCell(i, cellClicked);
                 agingGridView.Rows[i].Cells[cellClicked].Value = currentTestStatus[TestStatus.Blank];
             }
@@ -1008,7 +1224,8 @@ namespace ORAN_Aging
 
             // Show model selector and handle cancellation
             modelSelector[cellClicked - 1].show();
-            if (modelSelector[cellClicked - 1].comName == "Nope") {
+            if (modelSelector[cellClicked - 1].comName == "Nope")
+            {
                 ShowMessageSafe("Test cancelled");
                 ClearTestCells(cellClicked);
                 agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked].Value = "Start Aging";
@@ -1023,7 +1240,48 @@ namespace ORAN_Aging
             timer[cellClicked - 1].Stop();
         }
 
-        private void RunTest(int cellClicked) {
+        #region T Drive Mapping
+        /// <summary>
+        /// Checks if T: drive is accessible. If not, attempts to map it using net use.
+        /// </summary>
+        private bool EnsureTDriveMapped()
+        {
+            if (Directory.Exists(@"T:\"))
+            {
+                return true;
+            }
+
+            try
+            {
+                var process = new System.Diagnostics.Process();
+                process.StartInfo.FileName = "net";
+                process.StartInfo.Arguments = $@"use T: {AppConstants.TDriveNetworkPath} {AppConstants.TDrivePassword} /user:{AppConstants.TDriveUser} /persistent:no";
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.CreateNoWindow = true;
+                process.Start();
+                process.WaitForExit(10000);
+
+                if (process.ExitCode == 0 && Directory.Exists(@"T:\"))
+                {
+                    return true;
+                }
+
+                string error = process.StandardError.ReadToEnd();
+                Console.WriteLine("Failed to map T: drive: " + error);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception mapping T: drive: " + ex.Message);
+                return false;
+            }
+        }
+        #endregion
+
+        private void RunTest(int cellClicked)
+        {
             string serialNumber = null;
             string modelNumber = null;
 
@@ -1033,49 +1291,40 @@ namespace ORAN_Aging
                 modelNumber = agingGridView.Rows[(int)AgingDataRow.Model].Cells[cellClicked].Value?.ToString();
             }));
 
-            if (string.IsNullOrWhiteSpace(serialNumber) || string.IsNullOrWhiteSpace(modelNumber)) {
+            if (string.IsNullOrWhiteSpace(serialNumber) || string.IsNullOrWhiteSpace(modelNumber))
+            {
                 ShowMessageSafe("Invalid test parameters.");
                 return;
             }
 
+            // Ensure T: drive is mapped before starting the test
+            if (!EnsureTDriveMapped())
+            {
+                ShowMessageSafe("T: drive is not accessible and could not be mapped.\nPlease check network connection and try again.");
+                return;
+            }
+
             // Run specific test based on model
-            if (modelNumber == "ORAN PCS" || modelNumber == "ORAN LOLO") {
-                StartVerizonAgingTest(cellClicked, serialNumber, modelNumber, modelSelector[cellClicked - 1],
+            if (modelNumber == "ORAN PCS" || modelNumber == "ORAN LOLO")
+            {
+                StartCarrierAAgingTest(cellClicked, serialNumber, modelNumber, modelSelector[cellClicked - 1],
                     modelSelector[cellClicked - 1].hours, testLog[cellClicked - 1]);
                 timer[cellClicked - 1].Dispose();
-                if (timer[cellClicked - 1] != null) {
-                    timer[cellClicked - 1] = null;
-                }
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
                 timer[cellClicked - 1] = new AgingTestSlot(cellClicked, agingGridView);
 
-            } else if (modelNumber == "FAT LOLO") {
+            }
+            else if (modelNumber == "FAT LOLO")
+            {
                 StartFatLOLOAging(cellClicked, serialNumber, modelNumber, modelSelector[cellClicked - 1],
                     modelSelector[cellClicked - 1].hours, testLog[cellClicked - 1]);
                 timer[cellClicked - 1].Dispose();
-                if (timer[cellClicked - 1] != null) {
-                    timer[cellClicked - 1] = null;
-                }
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                timer[cellClicked - 1] = new AgingTestSlot(cellClicked, agingGridView);
-
-            } else if (modelNumber == "DISH DUAL" || modelNumber == "DISH TRI") {
-                StartDishAgingTest(cellClicked, serialNumber, modelNumber, modelSelector[cellClicked - 1],
-                    modelSelector[cellClicked - 1].hours, testLog[cellClicked - 1]);
-                timer[cellClicked - 1].Dispose();
-                if (timer[cellClicked - 1] != null) {
-                    timer[cellClicked - 1] = null;
-                }
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
                 timer[cellClicked - 1] = new AgingTestSlot(cellClicked, agingGridView);
             }
 
             // If still in stop mode after test
             this.Invoke((MethodInvoker)(() => {
-                if (agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked] == stopButton[cellClicked - 1]) {
+                if (agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked] == stopButton[cellClicked - 1])
+                {
                     testStop[cellClicked - 1] = true;
                     stopButton[cellClicked - 1].Value = "Stopping";
                     stopLoadingInCell((int)AgingDataRow.Result, cellClicked);
@@ -1085,30 +1334,38 @@ namespace ORAN_Aging
                 // Reset Start button after finishing
                 testStop[cellClicked - 1] = false;
                 startButton[cellClicked - 1].Value = "Start Aging";
-                if (agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked] != startButton[cellClicked - 1]) {
+                if (agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked] != startButton[cellClicked - 1])
+                {
                     agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked] = startButton[cellClicked - 1];
                 }
             }));
         }
 
-        private void HandleClearButtonClick(int cellClicked) {
-            if (agingGridView.Rows[(int)AgingDataRow.Result].Cells[cellClicked].Tag == null) {
+        private void HandleClearButtonClick(int cellClicked)
+        {
+            if (agingGridView.Rows[(int)AgingDataRow.Result].Cells[cellClicked].Tag == null)
+            {
                 ClearTestCells(cellClicked);
                 agingGridView.Rows[(int)AgingDataRow.Start_Button_Row].Cells[cellClicked].Value = "Start Aging";
-            } else {
+            }
+            else
+            {
                 ShowMessageSafe("Test still running. Stop the test or wait for the test to finish before clearing");
             }
         }
 
-        private void ShowMessageSafe(string message) {
+        private void ShowMessageSafe(string message)
+        {
             if (this.InvokeRequired)
                 this.Invoke((MethodInvoker)(() => MessageBox.Show(message)));
             else
                 MessageBox.Show(message);
         }
 
-        private void ClearTestCells(int cellClicked) {
-            for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++) {
+        private void ClearTestCells(int cellClicked)
+        {
+            for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++)
+            {
                 stopLoadingInCell(i, cellClicked);
                 agingGridView.Rows[i].Cells[cellClicked].Value = currentTestStatus[TestStatus.Blank];
             }
@@ -1121,45 +1378,53 @@ namespace ORAN_Aging
             agingGridView.Rows[(int)AgingDataRow.Model].Cells[cellClicked].Value = string.Empty;
         }
 
-        private void StopTest(int cellClicked) {
+        private void StopTest(int cellClicked)
+        {
             testStop[cellClicked - 1] = true;
             stopButton[cellClicked - 1].Value = "Stopping";
             stopLoadingInCell((int)AgingDataRow.Result, cellClicked);
             agingGridView.Rows[(int)AgingDataRow.Result].Cells[cellClicked].Value = currentTestStatus[TestStatus.Stopped];
         }
 
-        private string MapPartNumberToModel(string partNumber) => partNumber switch {
+        private string MapPartNumberToModel(string partNumber) => partNumber switch
+        {
             "SFG-ARR57201VZ" => "FAT LOLO",
             "SFG-ARR27201VZ" => "ORAN LOLO",
             "SFG-ARR26301VZ" => "ORAN PCS",
-            "SFG-ARR3J601DI" => "DISH TRI",
-            "SFG-ARR3KM01DI" => "DISH DUAL",
             _ => "UNKNOWN"
         };
 
-        private void agingGridView_CellMouseEnter(object sender, DataGridViewCellEventArgs e) {
-            if (e.ColumnIndex > 0 && e.RowIndex == (int)AgingDataRow.Timer && timeCheck[e.ColumnIndex - 1] != null) {
+        private void agingGridView_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.ColumnIndex > 0 && e.RowIndex == (int)AgingDataRow.Timer && timeCheck[e.ColumnIndex - 1] != null)
+            {
                 toolTip.SetToolTip(agingGridView, "Will be done by " + timeCheck[e.ColumnIndex - 1]);
             }
         }
 
-        private void agingGridView_CellMouseLeave(object sender, DataGridViewCellEventArgs e) {
+        private void agingGridView_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
+        {
             toolTip.RemoveAll();
         }
         #endregion
 
         #region Board Invt Parsing 
-        private bool ParseBoardInvt(string input, string serialNumber, RichTextBox testLog) {
+        private bool ParseBoardInvt(string input, string serialNumber, RichTextBox testLog)
+        {
             bool result = true;
             string[] lines = input.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
             string serialPattern = @"\[\s*Serial Number\s*\]\s*(\S+)";
-            try {
-                foreach (string line in lines) {
+            try
+            {
+                foreach (string line in lines)
+                {
                     Match match = Regex.Match(line, serialPattern);
-                    if (match.Success) {
+                    if (match.Success)
+                    {
                         string foundSerial = match.Groups[1].Value;
 
-                        if (foundSerial == serialNumber) {
+                        if (foundSerial == serialNumber)
+                        {
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.SelectionColor = Color.DarkBlue;
                                 testLog.AppendText("\r\nScan Serial Number : " + serialNumber + "\n");
@@ -1170,7 +1435,9 @@ namespace ORAN_Aging
                                 testLog.AppendText(("\r\n" + "Internal Serial Number Match :  " + foundSerial + "\n"));
                                 testLog.SelectionColor = Color.Black;
                             }));
-                        } else {
+                        }
+                        else
+                        {
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.AppendText("\r\nScan Serial Number : " + serialNumber + "\n");
                             }));
@@ -1193,7 +1460,8 @@ namespace ORAN_Aging
         #endregion
 
         #region Write to File 
-        private void WritetoFile(string logfile, int slot, string reader) {
+        private void WritetoFile(string logfile, int slot, string reader)
+        {
             int retries = 0;
             bool success = false;
 
@@ -1204,22 +1472,27 @@ namespace ORAN_Aging
             string[] lines = reader.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 
             // Prefix each line with the timestamp
-            for (int i = 0; i < lines.Length; i++) {
+            for (int i = 0; i < lines.Length; i++)
+            {
                 lines[i] = $"{timestamp} {lines[i]}";
             }
 
             // Rebuild the full message
             string message = string.Join(Environment.NewLine, lines) + Environment.NewLine;
 
-            while (retries < 10 && !success) {
-                try {
+            while (retries < 10 && !success)
+            {
+                try
+                {
                     using (FileStream fs = new FileStream(logfile, FileMode.Append, FileAccess.Write, FileShare.None))
-                    using (StreamWriter writer = new StreamWriter(fs)) {
+                    using (StreamWriter writer = new StreamWriter(fs))
+                    {
                         writer.Write(message);
                     }
                     success = true;
                 }
-                catch {
+                catch
+                {
                     retries++;
                     Thread.Sleep(500);
                 }
@@ -1227,26 +1500,31 @@ namespace ORAN_Aging
         }
         #endregion
 
-        private string ReturnTimeStamp(int slot) {
+        private string ReturnTimeStamp(int slot)
+        {
             return agingGridView.Rows[(int)AgingDataRow.Timer].Cells[slot].Value.ToString();
         }
 
         byte[] interrupt = new byte[] { 0x03 };
 
-        #region AGING VERIZON MAIN FUNCTION
-        private async void StartVerizonAgingTest(int slot, string serialNumber, string modelNumber, ModelSelector modelSelector, int hours, RichTextBox testLog) {
-            if (modelSelector.comName == "" || modelSelector.comName == null) {
+        #region AGING CARRIER A MAIN FUNCTION
+        private async void StartCarrierAAgingTest(int slot, string serialNumber, string modelNumber, ModelSelector modelSelector, int hours, RichTextBox testLog)
+        {
+            if (modelSelector.comName == "" || modelSelector.comName == null)
+            {
                 this.Invoke(new MethodInvoker(() => {
                     testLog.AppendText("Com port not selected");
                 }));
-                for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++) {
+                for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++)
+                {
                     stopLoadingInCell(i, slot);
                     agingGridView.Rows[i].Cells[slot].Value = currentTestStatus[TestStatus.Blank];
                 }
                 agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Value = "";
                 return;
             }
-            try {
+            try
+            {
                 StartBackgroundTask(slot);
                 agingGridView.Rows[(int)AgingDataRow.Timer].Cells[slot].Value = string.Empty;
                 agingGridView.Rows[(int)AgingDataRow.Timer].Cells[slot].Value = "00:00:00";
@@ -1265,10 +1543,10 @@ namespace ORAN_Aging
                 bool rssiPassed = true;
                 bool snIsVerified = false;
                 bool unitIsFlagged = false;
-                if (modelNumber == "PCS") { postBooter = "postbooter.a.rf4439d-25a.0"; } else if (modelNumber == "LOLO") { postBooter = "postbooter.a.rf4440d-13a.0"; }
+                if (modelNumber == "ORAN PCS") { postBooter = "postbooter.a.rf_model_a.0"; } else if (modelNumber == "ORAN LOLO") { postBooter = "postbooter.a.rf_model_b.0"; }
                 List<string> LogFileList = LogBuilder(serialNumber, modelNumber);
                 Dictionary<string, string> failResultscom = new Dictionary<string, string>();
-                string location = "Lakeside";
+                string location = "Facility 1";
                 string logfile = LogFileList[0];
                 if (!logger.ContainsKey(slot))
                     logger[slot] = new LogHandler();
@@ -1281,7 +1559,7 @@ namespace ORAN_Aging
                 + "** Serial Number: " + serialNumber + Environment.NewLine
                 + "** Model Number:  " + modelNumber + Environment.NewLine
                 + "** Slot:          " + slot + Environment.NewLine
-                + "** App Ver.       V5.4" + Environment.NewLine
+                + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                 + "** Com Port  " + modelSelector.comName + Environment.NewLine
                 + "** Aging Location:          " + location + Environment.NewLine
                 + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
@@ -1297,7 +1575,7 @@ namespace ORAN_Aging
                 + "** Serial Number: " + serialNumber + Environment.NewLine
                 + "** Model Number:  " + modelNumber + Environment.NewLine
                 + "** Slot:          " + slot + Environment.NewLine
-                + "** App Ver.       V5.4" + Environment.NewLine
+                + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                 + "** Com Port  " + modelSelector.comName + Environment.NewLine
                 + "** Aging Location:          " + location + Environment.NewLine
                 + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
@@ -1317,7 +1595,8 @@ namespace ORAN_Aging
                 StringBuilder dataBuildercom = new StringBuilder();
                 string FirmwareVersion = "";
                 bool skipSetup = false;
-                using (SerialPort port = new SerialPort(modelSelector.comName)) {
+                using (SerialPort port = new SerialPort(modelSelector.comName))
+                {
 
                     port.BaudRate = 115200;
                     port.Parity = Parity.None;
@@ -1326,7 +1605,8 @@ namespace ORAN_Aging
                     port.WriteLine("");
                     Thread.Sleep(300);
                     string reader = ReadPort(port);
-                    if (reader.Contains("UShell >")) {
+                    if (reader.Contains("UShell >"))
+                    {
                         skipSetup = true;
 
                         agingTime = DateTime.Now.AddHours(hours);
@@ -1337,10 +1617,10 @@ namespace ORAN_Aging
                             testLog.AppendText("Test has started at:\n" + DateTime.Now.ToString("hh:mm tt") + "\nWill be done by:\n" + timeCheck[slot - 1] + "\n");
                         }));
 
-                        reader = SendPortCommand(port, "exit", ">");
+                        reader = SendPortCommand(port, "exit", ">", modelNumber);
                         WritetoFile(logfile, slot, reader);
 
-                        reader = SendPortCommand(port, "printenv", ">");
+                        reader = SendPortCommand(port, "printenv", ">", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         this.Invoke(new MethodInvoker(delegate {
                             testLog.SelectionColor = Color.DarkBlue;
@@ -1348,44 +1628,53 @@ namespace ORAN_Aging
                             testLog.AppendText("\n" + reader + "\n");
                             testLog.SelectionColor = Color.Black;
                         }));
-                        reader = SendPortCommand(port, "gettail 0", ">");
+                        reader = SendPortCommand(port, "gettail 0", ">", modelNumber);
                         WritetoFile(logfile, slot, reader);
 
-                        reader = SendPortCommand(port, "ushell", "UShell >");
+                        reader = SendPortCommand(port, "ushell", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         goto SkipSetup;
                     }
+                    else if (reader.Contains("WARNING:"))
+                    {
+                        goto SkipSetup;
+
+                    }
+
                     #region Unit Unlock
-                    while (!reader.Contains("Input password> <INTERRUPT>") && !testStop[slot - 1]) {
+                    while (!reader.Contains("Input password> <INTERRUPT>") && !testStop[slot - 1])
+                    {
                         port.Write(interrupt, 0, 1);
                         Thread.Sleep(300);
                         reader += port.ReadExisting();
                     }
                     WritetoFile(logfile, slot, reader);
 
-                    if (testStop[slot - 1]) {
+                    if (testStop[slot - 1])
+                    {
                         goto StopImmediately;
                     }
                     reader = String.Empty;
-                    reader = SendPortCommand(port, UbootPassword, "uRU>>");
+                    reader = SendPortCommand(port, "REDACTED_PASSWORD", "uRU>>", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "printenv", "uRU>>");
+                    reader = SendPortCommand(port, "printenv", "uRU>>", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "setenv BOOT_CONSOLE_LOG YES", "uRU>>");
+                    reader = SendPortCommand(port, "setenv BOOT_CONSOLE_LOG YES", "uRU>>", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "setenv AUTO_NEGO_STATUS CPRI", "uRU>>");
+                    reader = SendPortCommand(port, "setenv AUTO_NEGO_STATUS CPRI", "uRU>>", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "saveenv", "uRU>>");
+                    reader = SendPortCommand(port, "saveenv", "uRU>>", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "printenv", "uRU>>");
+                    reader = SendPortCommand(port, "printenv", "uRU>>", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    if (!reader.Contains("BOOT_CONSOLE_LOG=YES")) {
+                    if (!reader.Contains("BOOT_CONSOLE_LOG=YES"))
+                    {
                         port.WriteLine("setenv BOOT_CONSOLE_LOG YES");
                         Thread.Sleep(1000);
                         reader = ReadPort(port);
@@ -1396,7 +1685,8 @@ namespace ORAN_Aging
                         reader = ReadPort(port);
                         WritetoFile(logfile, slot, reader);
                     }
-                    if (!reader.Contains("AUTO_NEGO_STATUS=CPRI")) {
+                    if (!reader.Contains("AUTO_NEGO_STATUS=CPRI"))
+                    {
                         port.WriteLine("setenv AUTO_NEGO_STATUS CPRI");
                         Thread.Sleep(1000);
                         reader = ReadPort(port);
@@ -1408,7 +1698,7 @@ namespace ORAN_Aging
                         WritetoFile(logfile, slot, reader);
                     }
                     reader = string.Empty;
-                    reader = SendPortCommand(port, "printenv", "uRU>>");
+                    reader = SendPortCommand(port, "printenv", "uRU>>", modelNumber);
                     this.Invoke(new MethodInvoker(delegate {
                         testLog.SelectionColor = Color.DarkBlue;
                         testLog.AppendText("\n" + "*************Unlock Environment*************" + "\n");
@@ -1423,6 +1713,7 @@ namespace ORAN_Aging
                     Thread.Sleep(1000);
                     reader = ReadPort(port);
                     WritetoFile(logfile, slot, reader);
+
                     #endregion
 
                     agingTime = DateTime.Now.AddHours(hours);
@@ -1435,7 +1726,8 @@ namespace ORAN_Aging
                     }));
                 Login:;
                     this.Invoke(() => {
-                        if (testLog.TextLength > 100000) {
+                        if (testLog.TextLength > 100000)
+                        {
                             testLog.Clear();
                             testLog.SelectionColor = Color.DarkBlue;
                             testLog.AppendText(
@@ -1444,7 +1736,7 @@ namespace ORAN_Aging
                                 + "** Serial Number: " + serialNumber + Environment.NewLine
                                 + "** Model Number:  " + modelNumber + Environment.NewLine
                                 + "** Slot:          " + slot + Environment.NewLine
-                                + "** App Ver.       V5.4" + Environment.NewLine
+                                + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                                 + "** Com Port       " + modelSelector.comName + Environment.NewLine
                                 + "** Aging Location:" + location + Environment.NewLine
                                 + "** Burn Hours:    " + modelSelector.hours + Environment.NewLine
@@ -1456,13 +1748,16 @@ namespace ORAN_Aging
                     });
 
                     DateTime timeToCheck = DateTime.Now.AddMinutes(5);
-                    while (DateTime.Now < timeToCheck) {
+                    while (DateTime.Now < timeToCheck)
+                    {
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
                         reader = ReadPort(port);
                         dataBuildercom.Append(reader);
                         string bootstring = dataBuildercom.ToString();  // Store accumulated string
-                        if (bootstring.Contains("Redirect stdout to /dev/console") || bootstring.Contains("Copyright (C)") || bootstring.Contains("RU_RF4439D-25A login:")) { 
-                        for (int i = 0; i < 20; i++) {
+                        if (bootstring.Contains("Redirect stdout to /dev/console") || bootstring.Contains("Copyright (C), 2001-2015, Acme Electronic Co., Ltd.") || bootstring.Contains("RU_MODEL_A login:"))
+                        {
+                            for (int i = 0; i < 20; i++)
+                            {
                                 Thread.Sleep(5000);  // Wait for 6 seconds (5000 milliseconds)
                             }
                             WritetoFile(logfile, slot, bootstring);
@@ -1474,41 +1769,47 @@ namespace ORAN_Aging
                     stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
                     agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
 
-                    if (!snIsVerified) {
+                    if (!snIsVerified)
+                    {
                         showLoadingInCell((int)AgingDataRow.Verify_SN, slot);
                     }
                     #region Unit Login
 
-                    if (!skipSetup) {
-                        reader = SendPortCommand(port, "user", "Password:");
+                    if (!skipSetup)
+                    {
+                        reader = SendPortCommand(port, "user", "Password:", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
 
-                        reader = SendPortCommand(port, DeviceRootPassword, "user@");
+                        reader = SendPortCommand(port, "REDACTED_PASSWORD", "user@", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
 
-                        reader = SendPortCommand(port, "su -", "Password:");
+                        reader = SendPortCommand(port, "su -", "Password:", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
 
-                        reader = SendPortCommand(port, DeviceRootPassword, "root@");
+                        reader = SendPortCommand(port, "REDACTED_PASSWORD", "root@", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
 
-                        reader = SendPortCommand(port, "printenv", ">");
+                        reader = SendPortCommand(port, "printenv", ">", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
 
-                        reader = SendPortCommand(port, "gettail 0", ">");
+                        reader = SendPortCommand(port, "gettail 0", ">", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
 
-                        if (modelNumber == "PCS" || modelNumber == "LOLO") {
-                            foreach (string line in reader.Split("\r\n")) {
-                                if (line.Contains("postbooter")) {
+                        if (modelNumber == "ORAN PCS" || modelNumber == "ORAN LOLO")
+                        {
+                            foreach (string line in reader.Split("\r\n"))
+                            {
+                                if (line.Contains("postbooter"))
+                                {
                                     var values = line.Split(new String[] { " " }, StringSplitOptions.RemoveEmptyEntries);
-                                    if (values[1] != postBooter) {
+                                    if (values[1] != postBooter)
+                                    {
                                         this.Invoke(new MethodInvoker(delegate {
                                             testLog.SelectionColor = Color.Red;
                                             testLog.AppendText("Postbooter not installed\rSend to repair once test is finished\n");
@@ -1518,7 +1819,7 @@ namespace ORAN_Aging
                                 }
                             }
                         }
-                        reader = SendPortCommand(port, "ushell", "UShell >");
+                        reader = SendPortCommand(port, "ushell", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
                     }
@@ -1526,18 +1827,21 @@ namespace ORAN_Aging
                     #endregion
 
                     #region SNVerification 
-                    reader = SendPortCommand(port, "boardInvtShow", "UShell >");
+                    reader = SendPortCommand(port, "boardInvtShow", "UShell >", modelNumber);
                     WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
                     //Need to add stuff for passing and failing here.
-                    if (!snIsVerified) {
+                    if (!snIsVerified)
+                    {
                         SnVerification = ParseBoardInvt(reader, serialNumber, testLog);
-                        foreach (string line in reader.Split("\r\n")) {
-                            if (line.Contains("FW Version") && !line.Contains("Safe")) {
+                        foreach (string line in reader.Split("\r\n"))
+                        {
+                            if (line.Contains("FW Version") && !line.Contains("Safe"))
+                            {
                                 var values = line.Split(new String[] { " " }, StringSplitOptions.RemoveEmptyEntries);
                                 logger[slot].tlog.Firmware = values[4].Trim();
-                                if (values[4].Contains("25.A.005.078") && modelNumber == "ORAN PCS") {
+                                if (values[4].Contains("25.A.005.078") && modelNumber == "ORAN PCS")
+                                {
                                     this.Invoke(new MethodInvoker(delegate {
                                         testLog.SelectionColor = Color.Red;
                                         testLog.AppendText(serialNumber + " has defective firmware\nPlease update firmware");
@@ -1567,17 +1871,21 @@ namespace ORAN_Aging
                         agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
 
 
-                    } else if (SnVerification == false) {
+                    }
+                    else if (SnVerification == false)
+                    {
                         agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
                         goto StopImmediately;
                     }
+                    if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
                     #endregion
 
                     #region Full Power Setup
                     this.Invoke(new MethodInvoker(delegate {
                         testLog.AppendText("Starting setup\n");
                     }));
-                    switch (modelNumber) {
+                    switch (modelNumber)
+                    {
                         case "ORAN LOLO":
                             VZ_LOLO vZ_LOLO = new VZ_LOLO();
                             vZ_LOLO.SetupVZLOLO(port, logfile, slot);
@@ -1596,52 +1904,62 @@ namespace ORAN_Aging
                         testLog.AppendText("Full power wait has started. Test will continue after 5 minutes.!\n");
                     }));
 
-                    for (int i = 0; i < 60; i++) {
+                    for (int i = 0; i < 60; i++)
+                    {
+                        if (testStop[slot - 1] == true || DateTime.Now > agingTime) { goto StopImmediately; }
                         port.WriteLine("");
                         Thread.Sleep(5000);  // Wait for 5 seconds (5000 milliseconds)
                     }
                     #endregion
 
                     #region Aging Loop
-                    do {
-                        for (int loop = 0; loop < 8; loop++) {
-                            reader = SendPortCommand(port, "fwversion", "UShell >");
+                    do
+                    {
+                        for (int loop = 0; loop < 8; loop++)
+                        {
+                            reader = SendPortCommand(port, "fwversion", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "sts", "UShell >");
+                            reader = SendPortCommand(port, "sts", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "console sts", "UShell >");
+                            reader = SendPortCommand(port, "console sts", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardEnvShow", "UShell >");
+                            reader = SendPortCommand(port, "boardEnvShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardSourceShow", "UShell >");
+                            reader = SendPortCommand(port, "boardSourceShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardPowShow", "UShell >");
+                            reader = SendPortCommand(port, "boardPowShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
                             #region Power and RSSI Validation
-                            reader = SendPortCommand(port, "boardAntPowShow", "UShell >");
+                            reader = SendPortCommand(port, "boardAntPowShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             var lines = reader.Split("\r\n");
-                            foreach (var line in lines) {
-                                if (line.Contains("TxAntSum")) {
+                            foreach (var line in lines)
+                            {
+                                if (line.Contains("TxAntSum"))
+                                {
                                     string[] values = line.Split(new String[] { " ", "|" }, StringSplitOptions.RemoveEmptyEntries);
-                                    for (int i = 1; i < values.Length; i++) {
-                                        try {
+                                    for (int i = 1; i < values.Length; i++)
+                                    {
+                                        try
+                                        {
                                             double txValue = double.Parse(values[i]);
-                                            if (txValue < 44 || txValue > 47) {
+                                            if (txValue < 44 || txValue > 47)
+                                            {
                                                 txPowerPassed = false;
-                                                if (bootcount < 0) {
+                                                if (bootcount < 0)
+                                                {
 
                                                     logger[slot].tfailed.Add(new TestFailed { TestName = "Tx Power : Path " + i, Value = txValue + "db", Result = "FAIL", ErrorCodes = "TT053" });
                                                     string failKey = "Tx Power : Path " + i;
@@ -1650,25 +1968,32 @@ namespace ORAN_Aging
                                                 }
                                                 logEntries.Add(($"Path {i} Failed TxAntSum={values[i]}dbm\n", Color.Red));
 
-                                            } else {
+                                            }
+                                            else
+                                            {
                                                 logEntries.Add(($"Path {i} Passed TxAntSum={values[i]}dbm\n", Color.Black));
                                             }
                                         }
-                                        catch {
+                                        catch
+                                        {
                                             this.Invoke(new MethodInvoker(delegate {
                                                 testLog.AppendText("Exception thrown. Send log to engineer\n");
                                             }));
                                         }
                                     }
                                 }
-                                if (line.Contains("RxAntFa00")) {
+                                if (line.Contains("RxAntFa00"))
+                                {
                                     logEntries.Add(($"\n", Color.Black));
                                     string[] values = line.Split(new String[] { " ", "|" }, StringSplitOptions.RemoveEmptyEntries);
-                                    for (int i = 1; i < values.Length; i++) {
+                                    for (int i = 1; i < values.Length; i++)
+                                    {
                                         double rssiValue = double.Parse(values[i]);
-                                        if (rssiValue > -80 || rssiValue < -109) { // ORIGINAL LIMIT -96 AND -107
+                                        if (rssiValue > -80 || rssiValue < -109)
+                                        { // ORIGINAL LIMIT -96 AND -107
 
-                                            if (bootcount < 0 && (double.Parse(values[3]) > -30 || double.Parse(values[3]) < -120)) {
+                                            if (bootcount < 0 && (double.Parse(values[3]) > -30 || double.Parse(values[3]) < -120))
+                                            {
 
                                                 logger[slot].tfailed.Add(new TestFailed { TestName = "RSSI : Path " + i, Value = rssiValue, Result = "FAIL", ErrorCodes = "TT045" });
                                                 string failKey = "RSSI  : Path " + i;
@@ -1680,21 +2005,24 @@ namespace ORAN_Aging
                                             logEntries.Add(($"Path {i} Failed RSSI ={values[i]}dbm\n", Color.Red));
                                             /*this.Invoke(new MethodInvoker(delegate {
                                                 testLog.SelectionColor = Color.Red;
-                                                testLog.AppendText("Path " + i + " Failed RSSI = " + values[i] + "dbm\n");
+                                                testLog.AppendText("Path " + i + " Failed RSSI = " + values[i] + "dbm\n", modelNumber);
                                                 testLog.SelectionColor = Color.Black;
                                             }));*/
 
-                                        } else {
+                                        }
+                                        else
+                                        {
                                             logEntries.Add(($"Path {i} Passed RSSI ={values[i]}dbm\n", Color.Black));
                                             /*this.Invoke(new MethodInvoker(delegate {
-                                                testLog.AppendText("Path " + i + " Passed RSSI = " + values[i] + "dbm\n");
+                                                testLog.AppendText("Path " + i + " Passed RSSI = " + values[i] + "dbm\n", modelNumber);
                                             }));*/
                                         }
                                     }
                                 }
                             }
                             this.Invoke(new MethodInvoker(() => {
-                                foreach (var entry in logEntries) {
+                                foreach (var entry in logEntries)
+                                {
                                     testLog.SelectionColor = entry.Color;
                                     testLog.AppendText(entry.Text);
                                 }
@@ -1705,32 +2033,37 @@ namespace ORAN_Aging
                             #endregion
 
                             #region Board Temp Show
-                            reader = SendPortCommand(port, "boardTempShow", "UShell >");
+                            reader = SendPortCommand(port, "boardTempShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             // Regex for capturing all numbers after the label
                             (Match boardMatch, Match fpgaMatch) = CleanBoardTemp(reader);
-                            if (fpgaMatch.Success) {
-                                for (int i = 1; i <= 3; i++) {
+                            if (fpgaMatch.Success)
+                            {
+                                for (int i = 1; i <= 3; i++)
+                                {
                                     logEntries.Add(($"FpgaTemp Values:\nPath {i}: {fpgaMatch.Groups[i].Value}\n\n", Color.Black)); //Passing
                                     /*this.Invoke(new MethodInvoker(delegate {
-                                        testLog.AppendText("\n" + "FpgaTemp Values: " + "\n");
-                                        testLog.AppendText($"  Path {i}: {fpgaMatch.Groups[i].Value}" + "\n");
+                                        testLog.AppendText("\n" + "FpgaTemp Values: " + "\n", modelNumber);
+                                        testLog.AppendText($"  Path {i}: {fpgaMatch.Groups[i].Value}" + "\n", modelNumber);
                                     }));*/
                                 }
                             }
 
-                            if (boardMatch.Success) {
-                                for (int i = 1; i <= 3; i++) {
+                            if (boardMatch.Success)
+                            {
+                                for (int i = 1; i <= 3; i++)
+                                {
                                     logEntries.Add(($"BoardTemp Values: \nPath {i}: {boardMatch.Groups[i].Value}\n\n", Color.Black)); //Passing
                                     /*this.Invoke(new MethodInvoker(delegate {
-                                        testLog.AppendText("\n" + "BoardTemp Values: " + "\n");
-                                        testLog.AppendText($"  Path {i}: {boardMatch.Groups[i].Value}" + "\n");
+                                        testLog.AppendText("\n" + "BoardTemp Values: " + "\n", modelNumber);
+                                        testLog.AppendText($"  Path {i}: {boardMatch.Groups[i].Value}" + "\n", modelNumber);
                                     }));*/
                                 }
 
                             }
                             this.Invoke(new MethodInvoker(() => {
-                                foreach (var entry in logEntries) {
+                                foreach (var entry in logEntries)
+                                {
                                     testLog.SelectionColor = entry.Color;
                                     testLog.AppendText(entry.Text);
                                 }
@@ -1741,61 +2074,62 @@ namespace ORAN_Aging
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
                             #endregion
 
-                            reader = SendPortCommand(port, "boardPllShow", "UShell >");
+                            reader = SendPortCommand(port, "boardPllShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardAttShow", "UShell >");
+                            reader = SendPortCommand(port, "boardAttShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardOptShow", "UShell >");
+                            reader = SendPortCommand(port, "boardOptShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardPowVersionShow", "UShell >");
+                            reader = SendPortCommand(port, "boardPowVersionShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardFAShow", "UShell >");
+                            reader = SendPortCommand(port, "boardFAShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardFAMapShow", "UShell >");
+                            reader = SendPortCommand(port, "boardFAMapShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardInfoShow", "UShell >");
+                            reader = SendPortCommand(port, "boardInfoShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardVerShow", "UShell >");
+                            reader = SendPortCommand(port, "boardVerShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "boardHwShow", "UShell >");
+                            reader = SendPortCommand(port, "boardHwShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "Alarm_Print 1", "UShell >");
+                            reader = SendPortCommand(port, "Alarm_Print 1", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
 
-                            for (int i = 0; i < 8; i++) {
-                                reader = SendPortCommand(port, "IRF_Get_Drain_Bias_Voltage_Level " + i + " 1", "UShell >");
+                            for (int i = 0; i < 8; i++)
+                            {
+                                reader = SendPortCommand(port, "IRF_Get_Drain_Bias_Voltage_Level " + i + " 1", "UShell >", modelNumber);
                                 WritetoFile(logfile, slot, reader);
                                 if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
                             }
 
-                            reader = SendPortCommand(port, "dpdsts", "UShell >");
+                            reader = SendPortCommand(port, "dpdsts", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
-                            reader = SendPortCommand(port, "pacalsts", "UShell >");
+                            reader = SendPortCommand(port, "pacalsts", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
 
                             #region Return Loss Check
-                            reader = SendPortCommand(port, "sts 100", "UShell >");
+                            reader = SendPortCommand(port, "sts 100", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
 
                             // Regex for capturing all numbers after "ReturnLoss"
@@ -1806,13 +2140,17 @@ namespace ORAN_Aging
 
                             Match rlMatch = rlRegex.Match(reader);
 
-                            if (rlMatch.Success) {
-                                for (int i = 1; i <= 8; i++) {
+                            if (rlMatch.Success)
+                            {
+                                for (int i = 1; i <= 8; i++)
+                                {
                                     string valueStr = rlMatch.Groups[i].Value.Trim();
                                     double returnLossValue;
 
-                                    if (double.TryParse(valueStr, out returnLossValue)) {
-                                        if (returnLossValue < 10.0) {
+                                    if (double.TryParse(valueStr, out returnLossValue))
+                                    {
+                                        if (returnLossValue < 10.0)
+                                        {
                                             returnLossPassed = false;
                                             if (bootcount < 0) // assuming bootcount is in your scope
                                             {
@@ -1825,16 +2163,19 @@ namespace ORAN_Aging
                                             }
                                             logEntries.Add(($" Path {i} FailedReturnLoss =  {valueStr} dB\n", Color.Red)); //Failing
                                             /*testLog.SelectionColor = Color.Red;
-                                                testLog.AppendText($" Path {i} FailedReturnLoss =  {valueStr} dB\n");
+                                                testLog.AppendText($" Path {i} FailedReturnLoss =  {valueStr} dB\n", modelNumber);
                                                 testLog.SelectionColor = Color.Black;*/
-                                        } else {
+                                        }
+                                        else
+                                        {
                                             logEntries.Add(($" Path {i} Passed ReturnLoss =  {valueStr} dB\n", Color.Black)); //Passing
-                                                                                                                              //testLog.AppendText($" Path {i} Passed ReturnLoss =  {valueStr} dB\n");
+                                                                                                                              //testLog.AppendText($" Path {i} Passed ReturnLoss =  {valueStr} dB\n", modelNumber);
                                         }
                                     }
                                 }
                                 this.Invoke(new MethodInvoker(() => {
-                                    foreach (var entry in logEntries) {
+                                    foreach (var entry in logEntries)
+                                    {
                                         testLog.SelectionColor = entry.Color;
                                         testLog.AppendText(entry.Text);
                                     }
@@ -1849,18 +2190,21 @@ namespace ORAN_Aging
 
                             #region Alarm Parsing 
                             port.ReadExisting();
-                            reader = SendPortCommand(port, "almsts", "UShell >");
+                            reader = SendPortCommand(port, "almsts", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             string[] alarmKeywords = { "RxOverflowStep", "UDA", "OptTxFault", "RxCommFail", "HighPimLevel", "OptRxLOS", "AbnPowerCount", "LowGainSymptom", " [***ALARM OCCUR***]" };
                             string[] alarmlines = reader.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                            foreach (string line in alarmlines) {
+                            foreach (string line in alarmlines)
+                            {
                                 // Only process lines with "Occur"
-                                if (line.Contains("Occur", StringComparison.OrdinalIgnoreCase)) {
+                                if (line.Contains("Occur", StringComparison.OrdinalIgnoreCase))
+                                {
 
                                     bool containsKnownKeyword = alarmKeywords.Any(keyword =>
                                         line.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
-                                    if (!containsKnownKeyword) {
+                                    if (!containsKnownKeyword)
+                                    {
 
                                         var alarmMatch = Regex.Match(line, @"\]\s*(.*?)\s*:");
 
@@ -1871,7 +2215,8 @@ namespace ORAN_Aging
                                         string antId = idMatch.Success ? idMatch.Groups[1].Value : "N/A";
                                         string paId = idMatch.Success ? idMatch.Groups[2].Value : "N/A";
                                         AlarmpnotPresent = false;
-                                        if (bootcount == 0) {
+                                        if (bootcount == 0)
+                                        {
 
                                             string failKey = "Alarm Name : " + paId;
                                             string failDetails = "Type: " + alarmName;
@@ -1882,14 +2227,15 @@ namespace ORAN_Aging
                                         logEntries.Add(($"{alarmName} detected on AntId(PaId): {antId}({paId})\n", Color.Red));
                                         /*this.Invoke(() => {
                                             testLog.SelectionColor = Color.Red;
-                                            testLog.AppendText($"{alarmName} detected on AntId(PaId): {antId}({paId})\n");
+                                            testLog.AppendText($"{alarmName} detected on AntId(PaId): {antId}({paId})\n", modelNumber);
                                             testLog.SelectionColor = Color.Black;
                                         });*/
                                     }
                                 }
                             }
                             this.Invoke(new MethodInvoker(() => {
-                                foreach (var entry in logEntries) {
+                                foreach (var entry in logEntries)
+                                {
                                     testLog.SelectionColor = entry.Color;
                                     testLog.AppendText(entry.Text);
                                 }
@@ -1899,14 +2245,15 @@ namespace ORAN_Aging
                             logEntries.Clear();
                             #endregion
 
-                            reader = SendPortCommand(port, "boardInvtShow", "UShell >");
+                            reader = SendPortCommand(port, "boardInvtShow", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto StopImmediately; }
                             Thread.Sleep(15000);
                         }
 
 
-                        if (bootcount > 0) {
+                        if (bootcount > 0)
+                        {
                             AlarmpnotPresent = true;
                             txPowerPassed = true;
                             rssiPassed = true;
@@ -1916,7 +2263,8 @@ namespace ORAN_Aging
 
                         reboot_counter++;
 
-                        if (DateTime.Now < agingTime && reboot_counter > 30 && AlarmpnotPresent && txPowerPassed && rssiPassed && returnLossPassed) {
+                        if (DateTime.Now < agingTime && reboot_counter > 30 && AlarmpnotPresent && txPowerPassed && rssiPassed && returnLossPassed)
+                        {
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.AppendText("\n" + "Break The Loop for Reboot...!" + "\n");
                             }));
@@ -1930,9 +2278,11 @@ namespace ORAN_Aging
 
                 EndTest:;
                     #region Reboot Logic
-                    if ((DateTime.Now < agingTime && reboot_counter > 30 && AlarmpnotPresent && txPowerPassed && rssiPassed && !testStop[slot - 1] && !reader.Contains("!fail!") && returnLossPassed)) {
+                    if ((DateTime.Now < agingTime && reboot_counter > 30 && AlarmpnotPresent && txPowerPassed && rssiPassed && !testStop[slot - 1] && !reader.Contains("!fail!") && returnLossPassed))
+                    {
                         reader = string.Empty;
-                        if (DateTime.Now < agingTime && !testStop[slot - 1]) {
+                        if (DateTime.Now < agingTime && !testStop[slot - 1])
+                        {
                             port.WriteLine("reset_psb");
                             Thread.Sleep(1000);
                             reader = ReadPort(port);
@@ -1940,8 +2290,6 @@ namespace ORAN_Aging
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.AppendText("Reset command sent\n" + DateTime.Now.ToString("HH:mm:ss") + "\n");
                             }));
-                            snIsVerified = false;
-                            SnVerification = false;
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.AppendText("Unit is Booting...! Test will continue after 5 minutes.!\n");
                             }));
@@ -1961,10 +2309,10 @@ namespace ORAN_Aging
                     // Consolidate conditions
                     bool isTestStopped = testStop[slot - 1];
                     bool isConnectionLost = reader.Contains("!fail!");
-                    bool isSnVerificationFailed = SnVerification == false;
-                    bool isTestPassed = returnLossPassed && AlarmpnotPresent && txPowerPassed && rssiPassed && !isTestStopped && isConnectionLost == false && FirmwareIsHigh == false;
+                    bool isTestPassed = returnLossPassed && AlarmpnotPresent && txPowerPassed && rssiPassed && !isTestStopped && !isConnectionLost && !FirmwareIsHigh && SnVerification;
 
-                    if (isTestPassed) {
+                    if (isTestPassed)
+                    {
                         logger[slot].tlog.OverallResult = "PASS";
 
                         stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
@@ -1980,8 +2328,10 @@ namespace ORAN_Aging
                         agingGridView.Rows[(int)AgingDataRow.Result].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
 
                         // Open port if not open
-                        try {
-                            if (!port.IsOpen) {
+                        try
+                        {
+                            if (!port.IsOpen)
+                            {
                                 port.Open();
                             }
                         }
@@ -2031,18 +2381,25 @@ namespace ORAN_Aging
                         Thread.Sleep(1000);
                         reader = ReadPort(port);
                         WritetoFile(logfile, slot, reader);
-
-
-
-
-
-                    } // Handle connection loss
-                    else if (FirmwareIsHigh) {
-                        for (int i = (int)AgingDataRow.Verify_SN; i < (int)AgingDataRow.Timer; i++) {
+                    }
+                    else if (returnLossPassed == false)
+                    {
+                        for (int i = (int)AgingDataRow.RF_Parameters; i < (int)AgingDataRow.Timer; i++)
+                        {
                             stopLoadingInCell(i, slot);
                             agingGridView.Rows[i].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
                         }
-                    } else if (isConnectionLost) {
+                    }
+                    else if (FirmwareIsHigh)
+                    {
+                        for (int i = (int)AgingDataRow.Verify_SN; i < (int)AgingDataRow.Timer; i++)
+                        {
+                            stopLoadingInCell(i, slot);
+                            agingGridView.Rows[i].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
+                        }
+                    }// Handle connection loss
+                    else if (isConnectionLost)
+                    {
                         this.Invoke(new MethodInvoker(delegate {
                             testLog.AppendText("Connection to unit lost. No output detected\n");
                         }));
@@ -2050,31 +2407,37 @@ namespace ORAN_Aging
                         stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
                         agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
 
-                        if (SnVerification == true && FirmwareIsHigh == false) {
+                        if (SnVerification == true && FirmwareIsHigh == false)
+                        {
                             stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
                             agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-                        } else {
+                        }
+                        else
+                        {
                             stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
                             agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
                             logger[slot].tlog.OverallResult = "FAIL";
                         }
 
                         // Reset the test status for other rows
-                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result }) {
+                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result })
+                        {
                             stopLoadingInCell(row, slot);
                             agingGridView.Rows[row].Cells[slot].Value = currentTestStatus[TestStatus.LostConnection];
                         }
 
                         logger[slot].tlog.OverallResult = "FAIL";
                     } // Handle test stop
-                      else if (isTestStopped) {
+                    else if (isTestStopped)
+                    {
                         stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
                         agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.Stopped];
 
                         stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
                         agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = SnVerification ? currentTestStatus[TestStatus.IsPassing] : currentTestStatus[TestStatus.Stopped];
 
-                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result }) {
+                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result })
+                        {
                             stopLoadingInCell(row, slot);
                             agingGridView.Rows[row].Cells[slot].Value = currentTestStatus[TestStatus.Stopped];
                         }
@@ -2082,24 +2445,29 @@ namespace ORAN_Aging
                         logger[slot].tlog.OverallResult = "TEST STOP";
                     }
 
-                      // Handle general failures
-                      else {
+                    // Handle general failures
+                    else
+                    {
                         logger[slot].tlog.OverallResult = "FAIL";
 
                         // Handle RF Parameters failure
-                        if (!txPowerPassed || !rssiPassed) {
+                        if (!txPowerPassed || !rssiPassed)
+                        {
                             stopLoadingInCell((int)AgingDataRow.RF_Parameters, slot);
                             agingGridView.Rows[(int)AgingDataRow.RF_Parameters].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
 
-                            if (AlarmpnotPresent) {
+                            if (AlarmpnotPresent)
+                            {
                                 stopLoadingInCell((int)AgingDataRow.Alarms, slot);
                                 agingGridView.Rows[(int)AgingDataRow.Alarms].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
                             }
                         }
 
                         // Handle Alarms failure
-                        if (!AlarmpnotPresent) {
-                            if (txPowerPassed && rssiPassed) {
+                        if (!AlarmpnotPresent)
+                        {
+                            if (txPowerPassed && rssiPassed)
+                            {
                                 stopLoadingInCell((int)AgingDataRow.RF_Parameters, slot);
                                 agingGridView.Rows[(int)AgingDataRow.RF_Parameters].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
                             }
@@ -2109,35 +2477,11 @@ namespace ORAN_Aging
                         }
 
                         // Handle Result failure
-                        if (!AlarmpnotPresent || !txPowerPassed || !rssiPassed) {
+                        if (!AlarmpnotPresent || !txPowerPassed || !rssiPassed)
+                        {
                             stopLoadingInCell((int)AgingDataRow.Result, slot);
                             agingGridView.Rows[(int)AgingDataRow.Result].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
                         }
-                    }
-                    #endregion
-
-                    #region T Drive Log Transfer
-                    try {
-                        // Always copy to local log path
-                        //File.Copy(logfile, LogFileList[0], overwrite: true);
-
-                        // Then try to copy to network path if available
-                        if (!string.IsNullOrEmpty(LogFileList[1])) {
-                            string driveRoot = IOPath.GetPathRoot(LogFileList[1]); // usually "T:\"
-                            if (Directory.Exists(driveRoot)) // T drive must be mapped
-                            {
-                                File.Copy(logfile, LogFileList[1], overwrite: true);
-                            } else {
-                                this.Invoke(new MethodInvoker(delegate {
-                                    testLog.AppendText("T drive unavailable\n");
-                                }));
-                            }
-                        }
-                    }
-                    catch (Exception ex) {
-                        this.Invoke(new MethodInvoker(delegate {
-                            testLog.AppendText($"Log copy error: {ex.Message}\n");
-                        }));
                     }
                     #endregion
 
@@ -2151,12 +2495,15 @@ namespace ORAN_Aging
 
 
                     #region Fail Test Directory 
-                    if (!isTestPassed) {
-                        try {
+                    if (!isTestPassed)
+                    {
+                        try
+                        {
                             // To display the dictionary contents in the RichTextBox
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.AppendText("\r\n" + "********** Fail Results **********" + "\r\n");
-                                foreach (var entry in failResultscom) {
+                                foreach (var entry in failResultscom)
+                                {
                                     testLog.SelectionColor = Color.Red;
                                     testLog.AppendText($"Test: {entry.Key} => {entry.Value}\r\n");
                                     testLog.SelectionColor = Color.Black;
@@ -2164,7 +2511,8 @@ namespace ORAN_Aging
 
                                 // Write to log file
                                 string failResultsText = "";
-                                foreach (var entry in failResultscom) {
+                                foreach (var entry in failResultscom)
+                                {
                                     failResultsText += $"Test: {entry.Key} => {entry.Value}\r\n";
                                 }
                                 File.AppendAllText(logfile, "\nElapsed Time: " + ReturnTimeStamp(slot) + "\n" + failResultsText + "\n");
@@ -2172,7 +2520,8 @@ namespace ORAN_Aging
                             }));
 
                         }
-                        catch (Exception ex) {
+                        catch (Exception ex)
+                        {
                             WritetoFile(logfile, slot, ex.ToString());
                         }
                         this.Invoke(new MethodInvoker(delegate {
@@ -2181,7 +2530,9 @@ namespace ORAN_Aging
                             testLog.SelectionColor = Color.Black;
                         }));
 
-                    } else {
+                    }
+                    else
+                    {
                         this.Invoke(new MethodInvoker(delegate {
                             testLog.SelectionColor = Color.Green;
                             testLog.AppendText("\n" + "Aging Test Pass...!" + "\n");
@@ -2192,8 +2543,10 @@ namespace ORAN_Aging
                     #endregion
 
                     #region OLP Data Entry 
-                    if (testStop[slot - 1] == false && !reader.Contains("!fail!")) {
-                        if (txPowerPassed == true && rssiPassed == true && returnLossPassed == true && AlarmpnotPresent == true && FirmwareIsHigh == false) {
+                    if (testStop[slot - 1] == false && !reader.Contains("!fail!"))
+                    {
+                        if (txPowerPassed == true && rssiPassed == true && returnLossPassed == true && AlarmpnotPresent == true && FirmwareIsHigh == false)
+                        {
                             logger[slot].tfailed.Add(new TestFailed { TestName = "Tx Power 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
                             logger[slot].tfailed.Add(new TestFailed { TestName = "RSSI 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
                             logger[slot].tfailed.Add(new TestFailed { TestName = "Return Loss 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
@@ -2208,18 +2561,21 @@ namespace ORAN_Aging
                         logger[slot].tlog.BurnHr = modelSelector.hours.ToString();
                         //logger[slot].tlog.Firmware = FirmwareVersion.ToString(); //
                         logger[slot].tlog.Model = modelNumber.ToString();
-                        logger[slot].tlog.Locations = "LakeSide 701";
+                        logger[slot].tlog.Locations = "Facility 1";
 
                         bool Ftp_FileisCopied = logger[slot].WriteToLog(serialNumber);
                         logger[slot].tfailed.Clear();
 
-                        if (Ftp_FileisCopied == true) {
+                        if (Ftp_FileisCopied == true)
+                        {
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.SelectionColor = Color.DarkBlue;
                                 testLog.AppendText("Json Copied to the Server...!\n");
                                 testLog.SelectionColor = Color.Black;
                             }));
-                        } else {
+                        }
+                        else
+                        {
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.SelectionColor = Color.Red;
                                 testLog.AppendText("Unable to copy the file to the Server...!\n");
@@ -2239,7 +2595,7 @@ namespace ORAN_Aging
                     + "** Serial Number: " + serialNumber + Environment.NewLine
                     + "** Model Number:  " + modelNumber + Environment.NewLine
                     + "** Slot:          " + slot + Environment.NewLine
-                    + "** App Ver.       V5.4" + Environment.NewLine
+                    + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                     + "** Com Port  " + port.PortName + Environment.NewLine
                     + "** Aging Location:          " + location + Environment.NewLine
                     + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
@@ -2253,7 +2609,7 @@ namespace ORAN_Aging
                     + "** Serial Number: " + serialNumber + Environment.NewLine
                     + "** Model Number:  " + modelNumber + Environment.NewLine
                     + "** Slot:          " + slot + Environment.NewLine
-                    + "** App Ver.       V5.4" + Environment.NewLine
+                    + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                     + "** Com Port  " + port.PortName + Environment.NewLine
                     + "** Aging Location:          " + location + Environment.NewLine
                     + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
@@ -2261,11 +2617,14 @@ namespace ORAN_Aging
 
                     File.AppendAllText(logfile, "\nTest Ended: " + ReturnTimeStamp(slot));
 
-                    try {
+
+                    try
+                    {
                         this.Invoke(new MethodInvoker(delegate {
                             testLog.AppendText("\r\n" + "********** Fail Results **********" + "\r\n");
 
-                            foreach (var entry in failResultscom) {
+                            foreach (var entry in failResultscom)
+                            {
                                 testLog.SelectionColor = Color.Red;
                                 testLog.AppendText($"Test: {entry.Key} => {entry.Value}\r\n");
                                 testLog.SelectionColor = Color.Black;
@@ -2273,7 +2632,8 @@ namespace ORAN_Aging
 
                             // Write to log file
                             string failResultsText = "";
-                            foreach (var entry in failResultscom) {
+                            foreach (var entry in failResultscom)
+                            {
                                 failResultsText += $"Test: {entry.Key} => {entry.Value}\r\n";
                             }
 
@@ -2283,1035 +2643,28 @@ namespace ORAN_Aging
                         }));
                     }//This bracket is to end the  using (SerialPort port = new SerialPort) on line 1274
                     catch { }
-                    port.Close();
-                }
-
-
-            }
-            catch (Exception ex) {
-                this.Invoke(new MethodInvoker(delegate {
-                    testLog.AppendText($"Log copy error: {ex.Message}\n");
-                }));
-            }
-
-        }
-        #endregion
-
-        #region AGING DISH MAIN FUNCTION
-        private async void StartDishAgingTest(int slot, string serialNumber, string modelNumber, ModelSelector modelSelector, int hours, RichTextBox testLog) {
-            if (modelSelector.comName == "" || modelSelector.comName == null) {
-                this.Invoke(new MethodInvoker(() => {
-                    testLog.AppendText("Com port not selected");
-                }));
-                for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++) {
-                    stopLoadingInCell(i, slot);
-                    agingGridView.Rows[i].Cells[slot].Value = currentTestStatus[TestStatus.Blank];
-                }
-                agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Value = "";
-                return;
-            }
-            try {
-                Dictionary<string, string> failResults = new Dictionary<string, string>();
-                StartBackgroundTask(slot);
-                this.Invoke(new MethodInvoker(delegate {
-                    timer[slot - 1].Reset();
-                }));
-                agingGridView.Rows[(int)AgingDataRow.Timer].Cells[slot].Value = string.Empty;
-                agingGridView.Rows[(int)AgingDataRow.Timer].Cells[slot].Value = "00:00:00";
-
-                int bootcount = 5;
-                DateTime agingTime = DateTime.Now;
-                bool SnVerification = false;
-                bool CertificateIsValid = true;
-                string FirmwareVersion = "";
-                bool txPowerPassed = true;
-                bool AlarmpnotPresent = true;
-                bool UnitIsUnLocked = true;
-                bool returnLossPassed = true;
-                bool rssiPassed = true;
-                bool snIsVerified = false;
-                string location = "Lakeside";
-                List<(string Text, System.Drawing.Color Color)> logEntries = new List<(string, System.Drawing.Color)>();
-                List<string> LogFileList = LogBuilder(serialNumber, modelNumber);
-                Dictionary<string, string> failResultscom = new Dictionary<string, string>();
-                string logfile = LogFileList[0];
-                if (!logger.ContainsKey(slot))
-                    logger[slot] = new LogHandler();
-
-                logger[slot].tfailed.Clear();  // start fresh
-                File.WriteAllText(logfile,
-
-                "**================================================================================" + Environment.NewLine
-                + "** Date:          " + DateTime.Now.ToString("yyyy-MM-dd") + Environment.NewLine
-                + "** Serial Number: " + serialNumber + Environment.NewLine
-                + "** Model Number:  " + modelNumber + Environment.NewLine
-                + "** Slot:          " + slot + Environment.NewLine
-                + "** App Ver.       V5.4" + Environment.NewLine
-                + "** Com Port  " + modelSelector.comName + Environment.NewLine
-                + "** Aging Location:          " + location + Environment.NewLine
-                + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
-
-                + "**================================================================================" + Environment.NewLine + "\n"); ;
-
-                this.Invoke(new MethodInvoker(() => {
-                    testLog.SelectionColor = Color.DarkBlue;
-                    testLog.AppendText(
-                 "**============================================" + Environment.NewLine + "\n"
-                + "* *Date:          " + DateTime.Now.ToString("yyyy - MM - dd") + Environment.NewLine
-                + "** Serial Number: " + serialNumber + Environment.NewLine
-                + "** Model Number:  " + modelNumber + Environment.NewLine
-                + "** Slot:          " + slot + Environment.NewLine
-                + "** App Ver.       V5.4" + Environment.NewLine
-                + "** Com Port  " + modelSelector.comName + Environment.NewLine
-                + "** Aging Location:          " + location + Environment.NewLine
-                + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
-    + "**============================================" + Environment.NewLine + "\n");
-                    testLog.SelectionColor = Color.Black;
-                }));
-
-                agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Style.Font = new Font("Digital-7", 16F, FontStyle.Regular);
-                agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Style.ForeColor = Color.DarkGreen;
-                agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Value = "TBD";
-
-                this.Invoke(new MethodInvoker(delegate {
-                    testLog.SelectionColor = Color.Green;
-                    testLog.AppendText("Plug in the power now\n");
-                    testLog.SelectionColor = Color.Black;
-                }));
-                StringBuilder dataBuildercom = new StringBuilder();
-                using (SerialPort port = new SerialPort(modelSelector.comName)) {
-                    port.BaudRate = 115200;
-                    port.Parity = Parity.None;
-                    port.StopBits = StopBits.One;
-                    bool skipSetup = false;
-                    port.Open();
-                    port.WriteLine("");
-                    Thread.Sleep(300);
-                    string reader = ReadPort(port);
-                    if (reader.Contains("UShell >")) {
-                        skipSetup = true;
-
-                        agingTime = DateTime.Now.AddHours(hours);
-                        timeCheck[slot - 1] = agingTime.ToString("hh:mm tt");
-                        agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Value = agingTime.ToString("hh:mm tt");
-                        this.Invoke(new MethodInvoker(delegate {
-                            timer[slot - 1].Start();
-                            testLog.AppendText("Test has started at:\n" + DateTime.Now.ToString("hh:mm tt") + "\nWill be done by:\n" + timeCheck[slot - 1] + "\n");
-                        }));
-
-                        reader = SendPortCommand(port, "exit", ">");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "printenv", ">");
-                        WritetoFile(logfile, slot, reader);
-
-                        this.Invoke(new MethodInvoker(delegate {
-                            testLog.SelectionColor = Color.DarkBlue;
-                            testLog.AppendText("\n" + "*************Unlock Environment*************" + "\n");
-                            testLog.AppendText("\n" + reader + "\n");
-                            testLog.SelectionColor = Color.Black;
-                        }));
-
-                        reader = SendPortCommand(port, "gettail 0", ">");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "ushell", "UShell >");
-                        WritetoFile(logfile, slot, reader);
-
-                        goto SkipSetup;
-                    }
-
-                    #region Unit Unlock
-                    while (!reader.Contains("<INTERRUPT>") && !testStop[slot - 1]) {
-                        port.Write(interrupt, 0, 1);
-                        Thread.Sleep(500);
-                        reader += port.ReadExisting();
-                    }
-
-                    WritetoFile(logfile, slot, reader);
-
-                    reader = String.Empty;
-                    reader = SendPortCommand(port, UbootPassword, "uRU>>");
-                    WritetoFile(logfile, slot, reader);
-
-                    reader = SendPortCommand(port, "printenv", "uRU>>");
-                    WritetoFile(logfile, slot, reader);
-
-                    reader = SendPortCommand(port, "setenv BOOT_CONSOLE_LOG YES", "uRU>>");
-                    WritetoFile(logfile, slot, reader);
-
-
-                    reader = SendPortCommand(port, "saveenv", "uRU>>");
-                    WritetoFile(logfile, slot, reader);
-
-                    reader = SendPortCommand(port, "printenv", "uRU>>");
-                    WritetoFile(logfile, slot, reader);
-
-                    if (!reader.Contains("BOOT_CONSOLE_LOG=YES")) {
-                        port.WriteLine("setenv BOOT_CONSOLE_LOG YES");
-                        Thread.Sleep(1000);
-                        reader = ReadPort(port);
-                        WritetoFile(logfile, slot, reader);
-
-                        port.WriteLine("saveenv");
-                        Thread.Sleep(3000);
-                        reader = ReadPort(port);
-                        WritetoFile(logfile, slot, reader);
-                    }
-
-                    reader = SendPortCommand(port, "printenv", "uRU>>");
-                    WritetoFile(logfile, slot, reader);
-
-                    this.Invoke(new MethodInvoker(delegate {
-                        testLog.SelectionColor = Color.DarkBlue;
-                        testLog.AppendText("\n" + "*************Unlock Environment*************" + "\n");
-                        testLog.AppendText("\n" + reader + "\n");
-                        testLog.SelectionColor = Color.Black;
-                    }));
-
-                    port.WriteLine("reboot u");
-                    Thread.Sleep(1000);
-                    reader = ReadPort(port);
-                    WritetoFile(logfile, slot, reader);
-                    #endregion
-
-                    agingTime = DateTime.Now.AddHours(hours);
-                    timeCheck[slot - 1] = agingTime.ToString("hh:mm tt");
-                    agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Value = agingTime.ToString("hh:mm tt");
-                    this.Invoke(new MethodInvoker(delegate {
-                        timer[slot - 1].Start();
-                        testLog.AppendText("Test has started at:\n" + DateTime.Now.ToString("hh:mm tt") + "\nWill be done by:\n" + timeCheck[slot - 1] + "\n");
-                    }));
-
-                    DateTime timeToCheck = DateTime.Now.AddMinutes(5);
-                    while (DateTime.Now < timeToCheck) {
-                        if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest1; }
-                        reader = ReadPort(port);
-                        dataBuildercom.Append(reader);
-                        string bootstring = dataBuildercom.ToString();  // Store accumulated string
-                        if (bootstring.Contains("Redirect stdout to /dev/console") || bootstring.Contains("Copyright (C), 2001-2015, Samsung Electronic Co., Ltd.")) {
-                            for (int i = 0; i < 20; i++) {
-                                Thread.Sleep(5000);  // Wait for 6 seconds (5000 milliseconds)
-                            }
-                            WritetoFile(logfile, slot, bootstring);
-                            break;
-                        }
-                    }
-                    dataBuildercom.Clear();
-
-                SkipSetup:;
-                    stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
-                    agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-
-                    showLoadingInCell((int)AgingDataRow.Verify_SN, slot);
-
-
-                    bool skipWait = false;
-                    int countdown = 15;
-                    if (!skipSetup) {
-                        while (countdown > 0 && !testStop[slot - 1]) {
-                            Thread.Sleep(10000);
-                            reader = ReadPort(port);
-                            File.AppendAllText(logfile, reader);
-                            countdown--;
-                        }
-                        if (testStop[slot - 1] == true) { goto EndTest1; }
-
-                        this.Invoke(new MethodInvoker(delegate {
-                            testLog.AppendText("Starting setup\n");
-                        }));
-                        switch (modelNumber) {
-                            case "DISH DUAL":
-                                dualBand[slot - 1].logfile = logfile;
-                                dualBand[slot - 1].SetupDualBand(port, logfile, slot);
-                                break;
-                            case "DISH TRI":
-                                triBand[slot - 1].logfile = logfile;
-                                triBand[slot - 1].SetupTriBand(port, logfile, slot);
-                                break;
-                        }
-                    }
-
-                    this.Invoke(new MethodInvoker(delegate {
-                        testLog.AppendText("Setup is complete\n");
-                    }));
-                    this.Invoke(new MethodInvoker(delegate {
-                        testLog.AppendText("Full power wait has started. Test will continue after 5 minutes.!\n");
-                    }));
-
-                    for (int i = 0; i < 60; i++) {
-                        Thread.Sleep(5000);  // Wait for 5 seconds (5000 milliseconds)
-                    }
-                    reader = SendPortCommand(port, "boardInvtShow", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-
-                    #region VerifySN
-                    if (!snIsVerified) {
-                        SnVerification = ParseBoardInvt(reader, serialNumber, testLog);
-
-                    }
-                    if (SnVerification == true && snIsVerified == false) //This for loop needs to be redone when officially done
-                     {
-                        snIsVerified = true;
-                        SnVerification = true;
-                        stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
-                        agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-
-                    } else {
-                        goto EndTest1;
-                    }
-                    #endregion
-
-                    #region Aging Loop
-                    try {
-                        do {
-                            this.Invoke(() => {
-                                if (testLog.TextLength > 100000) {
-                                    testLog.Clear();
-                                    testLog.SelectionColor = Color.DarkBlue;
-                                    testLog.AppendText(
-                                        "**============================================" + Environment.NewLine + "\n"
-                                        + "* *Date:          " + DateTime.Now.ToString("yyyy - MM - dd") + Environment.NewLine
-                                        + "** Serial Number: " + serialNumber + Environment.NewLine
-                                        + "** Model Number:  " + modelNumber + Environment.NewLine
-                                        + "** Slot:          " + slot + Environment.NewLine
-                                        + "** App Ver.       V5.4" + Environment.NewLine
-                                        + "** Com Port       " + modelSelector.comName + Environment.NewLine
-                                        + "** Aging Location:" + location + Environment.NewLine
-                                        + "** Burn Hours:    " + modelSelector.hours + Environment.NewLine
-                                        + "**============================================" + Environment.NewLine + "\n"
-                                    );
-                                    testLog.SelectionColor = Color.Black;
-                                    testLog.AppendText("** Log compacted due to size threshold **\n\n");
-                                }
-                            });
-                            if (!skipWait) {
-                                for (int i = 0; i < 90; i++) {
-                                    if (testStop[slot - 1] == true) { goto EndTest; }
-                                    Thread.Sleep(1000);
-                                }
-                            }
-
-                            if (testStop[slot - 1] == true || DateTime.Now > agingTime) { goto EndTest; }
-
-                            #region TX Power and RSSI Validation
-                            reader = string.Empty;
-                            reader = SendPortCommand(port, "boardAntPowShow", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-                            var lines = reader.Split("\r\n");
-                            int count = 0;
-                            if (modelNumber == "DISH DUAL") {
-                                foreach (var line in lines) {
-                                    if (line.Contains("TxAntSum")) {
-                                        string[] values = line.Split(new String[] { " ", "|" }, StringSplitOptions.RemoveEmptyEntries);
-                                        for (int i = 1; i < values.Length; i++) {
-                                            if (double.Parse(values[i]) < 44 || double.Parse(values[i]) > 47) {
-                                                logger[slot].tfailed.Add(new TestFailed { TestName = "Tx Power : Path " + i, Value = values[i].Trim() + "db", Result = "FAIL", ErrorCodes = "TT053" });
-
-                                                string failKey = "Tx Power : Path " + i;
-                                                string failDetails = "Fail: " + values[i].Trim();
-                                                failResultscom[failKey] = failDetails;
-                                                logEntries.Add(($"Path {i} Failed TxAntSum={values[i]}dbm\n", Color.Red)); //Failing
-                                                /*this.Invoke(new MethodInvoker(delegate {
-                                                    testLog.SelectionColor = Color.Red;
-                                                    testLog.AppendText("Path " + i + " Failed TxAntSum=" + values[i] + "dbm" + "\n");
-                                                    testLog.SelectionColor = Color.Black;
-                                                }));*/
-                                                txPowerPassed = false;
-
-                                            } else {
-                                                logEntries.Add(($"Path {i} Passed TxAntSum={values[i]}dbm\n", Color.Black)); //Passing
-                                                //this.Invoke(new MethodInvoker(delegate {testLog.AppendText("Path " + i + " Passed TxAntSum=" + values[i] + "dbm" + "\n");}));
-                                            }
-                                            logEntries.Add(($"\n", Color.Black));
-                                            if (line.Trim().StartsWith("0") || line.Trim().StartsWith("1") || line.Trim().StartsWith("2") || line.Trim().StartsWith("3") || line.Trim().StartsWith("4") || line.Trim().StartsWith("5") || line.Trim().StartsWith("6") || line.Trim().StartsWith("7") && count < 8) {
-                                                if (count == 8) { break; }
-
-
-                                                if (double.Parse(values[3]) > -80 || double.Parse(values[3]) < -109) {// ORIGINAL LIMIT -96 AND -107                        
-                                                    if (bootcount < 0 || double.Parse(values[3]) > -30 || double.Parse(values[3]) < -120) {
-                                                        logger[slot].tfailed.Add(new TestFailed { TestName = "RSSI : Path " + i, Value = values[i].Trim(), Result = "FAIL", ErrorCodes = "TT045" });
-                                                        string failKey = "RSSI  : Path " + i;
-                                                        string failDetails = "Fail: " + values[i].Trim();
-                                                        failResultscom[failKey] = failDetails;
-                                                        rssiPassed = false;
-                                                    }
-
-
-                                                    logEntries.Add(($"Path {i} Failed RSSI ={values[i]}dbm\n", Color.Red)); //Failing
-                                                    /*this.Invoke(new MethodInvoker(delegate {
-                                                        testLog.SelectionColor = Color.Red;
-                                                        testLog.AppendText("Path " + i + " Failed RSSI =" + values[0] + "dbm" + "\n");
-                                                        testLog.SelectionColor = Color.Black;
-                                                    }));*/
-
-
-                                                    count++;
-                                                } else {
-                                                    logEntries.Add(($"Path {i} Passed RSSI ={values[i]}dbm\n", Color.Black)); //Passing
-                                                    /*this.Invoke(new MethodInvoker(delegate {
-                                                        testLog.AppendText("Path " + i + " Passed Rssi=" + values[0] + "dbm" + "\n");
-                                                    }));*/
-                                                    count++;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                }
-                                this.Invoke(new MethodInvoker(delegate { testLog.AppendText("\n"); }));
-                            } else if (modelNumber == "DISH TRI") {
-                                foreach (var line in lines) {
-                                    if (line.Contains("TxAntSum")) {
-                                        string[] values = line.Split(new String[] { " ", "|" }, StringSplitOptions.RemoveEmptyEntries);
-                                        for (int i = 1; i <= 4; i++) {
-                                            if (double.Parse(values[i]) < 46 || double.Parse(values[i]) > 49) {
-                                                logger[slot].tfailed.Add(new TestFailed { TestName = "Tx Power : Path " + i, Value = values[i].Trim() + "db", Result = "FAIL", ErrorCodes = "TT053" });
-
-                                                string failKey = "Tx Power : Path " + i;
-                                                string failDetails = "Fail: " + values[i].Trim();
-                                                failResultscom[failKey] = failDetails;
-
-                                                logEntries.Add(($"Path {i} Failed TxAntSum={values[i]}dbm\n", Color.Red)); //Failing
-                                                /*this.Invoke(new MethodInvoker(delegate {
-                                                    testLog.SelectionColor = Color.Red;
-                                                    testLog.AppendText("Path " + i + " Failed TxAntSum=" + values[i] + "dbm" + "\n");
-                                                    testLog.SelectionColor = Color.Black;
-                                                }));*/
-                                                txPowerPassed = false;
-
-                                            } else {
-                                                logEntries.Add(($"Path {i} Passed TxAntSum={values[i]}dbm\n", Color.Black)); //Passing
-                                                //this.Invoke(new MethodInvoker(delegate {testLog.AppendText("Path " + i + " Passed TxAntSum=" + values[i] + "dbm" + "\n");}));
-                                            }
-                                        }
-                                        for (int i = 5; i < values.Length; i++) {
-                                            if (double.Parse(values[i]) < 39 || double.Parse(values[i]) > 41) {
-                                                logger[slot].tfailed.Add(new TestFailed { TestName = "Tx Power : Path " + i, Value = values[i].Trim() + "db", Result = "FAIL", ErrorCodes = "TT053" });
-                                                string failKey = "Tx Power : Path " + i;
-                                                string failDetails = "Fail: " + values[i].Trim();
-                                                failResultscom[failKey] = failDetails;
-                                                logEntries.Add(($"Path {i} Failed TxAntSum={values[i]}dbm\n", Color.Red)); //Failing
-                                                /*this.Invoke(new MethodInvoker(delegate {
-                                                    testLog.SelectionColor = Color.Red;
-                                                    testLog.AppendText("Path " + i + " Failed TxAntSum=" + values[i] + "dbm" + "\n");
-                                                    testLog.SelectionColor = Color.Black;
-                                                }));*/
-                                                txPowerPassed = false;
-
-                                            } else {
-                                                logEntries.Add(($"Path {i} Passed TxAntSum={values[i]}dbm\n", Color.Black)); //Passing
-                                                //this.Invoke(new MethodInvoker(delegate {testLog.AppendText("Path " + i + " Passed TxAntSum=" + values[i] + "dbm" + "\n");}));
-                                            }
-                                        }
-                                        this.Invoke(new MethodInvoker(delegate {
-                                            testLog.AppendText("\n");
-                                        }));
-                                    }
-                                    logEntries.Add(($"\n", Color.Black));
-                                    if (line.Contains("RxAntFa00")) {
-                                        string[] values = line.Split(new String[] { " ", "|" }, StringSplitOptions.RemoveEmptyEntries);
-                                        for (int i = 1; i < values.Length; i++) {
-                                            if (double.Parse(values[i]) > -80.5 || double.Parse(values[i]) < -109.5) {  // ORIGINAL LIMIT -88.5 AND -106.5
-
-
-                                                if (bootcount < 0 || double.Parse(values[3]) > -30 || double.Parse(values[3]) < -120) {
-                                                    string failKey = "RSSI  : Path " + i;
-                                                    string failDetails = "Fail: " + values[i].Trim();
-                                                    failResultscom[failKey] = failDetails;
-
-                                                    logger[slot].tfailed.Add(new TestFailed { TestName = "RSSI : Path " + i, Value = values[i].Trim(), Result = "FAIL", ErrorCodes = "TT045" });
-                                                    rssiPassed = false;
-                                                }
-                                                logEntries.Add(($"Path {i} Failed RSSI ={values[i]}dbm\n", Color.Red)); //Failing
-                                                /*this.Invoke(new MethodInvoker(delegate {
-                                                    testLog.SelectionColor = Color.Red;
-                                                    testLog.AppendText("Path " + i + " Failed Rssi=" + values[i] + "dbm" + "\n");
-                                                    testLog.SelectionColor = Color.Black;
-                                                }));*/
-
-                                            } else {
-                                                logEntries.Add(($"Path {i} Passed RSSI ={values[i]}dbm\n", Color.Black)); //Passing
-                                                //this.Invoke(new MethodInvoker(delegate {testLog.AppendText("Path " + i + " Passed Rssi=" + values[i] + "dbm" + "\n");}));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            this.Invoke(new MethodInvoker(() => {
-                                foreach (var entry in logEntries) {
-                                    testLog.SelectionColor = entry.Color;
-                                    testLog.AppendText(entry.Text);
-                                }
-                                testLog.SelectionColor = Color.Black;
-                                testLog.AppendText("\n");
-                            }));
-                            logEntries.Clear();
-                            #endregion
-
-                            #region Alarm Parsing
-                            reader = string.Empty;
-                            reader = SendPortCommand(port, "almsts", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-                            string[] alarmKeywords = { "RxOverflowStep", "UDA", "ShutDown", "OptTxFault", "RxCommFail", "HighPimLevel", "OptRxLOS", "SyncError", "NoExtSyncSrc", "AbnPowerCount", "RssiImbalance" };
-
-                            string[] linesalarm = reader.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-
-                            foreach (string line in linesalarm) {
-                                // Only process lines with "Occur"
-                                if (line.Contains("Occur", StringComparison.OrdinalIgnoreCase)) {
-
-                                    bool containsKnownKeyword = alarmKeywords.Any(keyword =>
-                                        line.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-
-                                    if (!containsKnownKeyword) {
-
-                                        var alarmMatch = Regex.Match(line, @"\]\s*(.*?)\s*:");
-
-                                        // Extract AntId and PaId (e.g., "4 ( 3)")
-                                        var idMatch = Regex.Match(line, @"\:\s+(\d+)\s+\(\s*(\d+)\)");
-
-                                        string alarmName = alarmMatch.Success ? alarmMatch.Groups[1].Value.Trim() : "Unknown";
-                                        string antId = idMatch.Success ? idMatch.Groups[1].Value : "N/A";
-                                        string paId = idMatch.Success ? idMatch.Groups[2].Value : "N/A";
-                                        AlarmpnotPresent = false;
-                                        if (bootcount < 0) {
-                                            string failKey = "Alarm Name : " + paId;
-                                            string failDetails = "Type: " + alarmName;
-                                            failResultscom[failKey] = failDetails;
-
-                                            logger[slot].tfailed.Add(new TestFailed { TestName = "Alarm : ", Value = alarmName + "Antenna ID: " + antId + "PA ID: " + paId, Result = "FAIL", ErrorCodes = "TT045" });
-                                        }
-                                        logEntries.Add(($"{alarmName} detected on AntId(PaId): {antId}({paId})\n", Color.Red));
-                                        /*this.Invoke(() => {
-                                            testLog.SelectionColor = Color.Red;
-                                            testLog.AppendText($"{alarmName} detected on AntId(PaId): {antId}({paId})\n");
-                                            testLog.SelectionColor = Color.Black;
-                                        });*/
-                                    }
-                                }
-                            }
-                            this.Invoke(new MethodInvoker(() => {
-                                foreach (var entry in logEntries) {
-                                    testLog.SelectionColor = entry.Color;
-                                    testLog.AppendText(entry.Text);
-                                }
-                                testLog.SelectionColor = Color.Black;
-                                testLog.AppendText("\n");
-                            }));
-                            logEntries.Clear();
-                            #endregion
-
-                            reader = SendPortCommand(port, "boardPowShow", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-                            if (!txPowerPassed || !rssiPassed || testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                            reader = SendPortCommand(port, "boardAttShow", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-                            if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
-
-                            reader = SendPortCommand(port, "boardSourceShow", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-                            if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
-
-                            #region Board Temp Show
-                            reader = SendPortCommand(port, "boardTempShow", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-                            // Regex for capturing all numbers after the label
-                            (Match boardMatch, Match fpgaMatch) = CleanBoardTemp(reader);
-                            if (fpgaMatch.Success) {
-                                for (int i = 1; i <= 3; i++) {
-                                    logEntries.Add(("\n" + "FpgaTemp Values: " + "\n", Color.Black)); //Passing
-                                    logEntries.Add(($"  Path {i}: {fpgaMatch.Groups[i].Value}\n", Color.Black)); //Passing
-                                    /*this.Invoke(new MethodInvoker(delegate {
-                                        testLog.AppendText("\n" + "FpgaTemp Values: " + "\n");
-                                        testLog.AppendText($"  Path {i}: {fpgaMatch.Groups[i].Value}\n");
-                                    }));*/
-                                }
-                            }
-
-                            if (boardMatch.Success) {
-                                for (int i = 1; i <= 3; i++) {
-                                    logEntries.Add(("\nBoardTemp Values: \n", Color.Black)); //Passing
-                                    logEntries.Add(($"  Path {i}: {fpgaMatch.Groups[i].Value}\n", Color.Black)); //Passing
-                                    /*this.Invoke(new MethodInvoker(delegate {
-                                        testLog.AppendText("\n" + "BoardTemp Values: " + "\n");
-                                        testLog.AppendText($"  Path {i}: {fpgaMatch.Groups[i].Value}\n");
-                                    }));*/
-                                }
-                            }
-                            this.Invoke(new MethodInvoker(() => {
-                                foreach (var entry in logEntries) {
-                                    testLog.SelectionColor = entry.Color;
-                                    testLog.AppendText(entry.Text);
-                                }
-                                testLog.SelectionColor = Color.Black;
-                                testLog.AppendText("\n");
-                            }));
-                            logEntries.Clear();
-                            if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
-                            #endregion
-
-                            reader = SendPortCommand(port, "boardFAShow", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-                            if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
-
-                            reader = SendPortCommand(port, "boardFAMapShow", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-                            if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
-
-                            #region Return Loss Check
-                            reader = SendPortCommand(port, "boardInfoShow", "UShell >");
-                            WritetoFile(logfile, slot, reader);
-
-                            Regex rlRegex = new Regex(@"Ret Loss\|\s*([\d\.\-]+) dB\|\s*([\d\.\-]+) dB\|\s*([\d\.\-]+) dB\|\s*([\d\.\-]+) dB\|\s*([\d\.\-]+) dB\|\s*([\d\.\-]+) dB\|\s*([\d\.\-]+) dB\|\s*([\d\.\-]+) dB\|", RegexOptions.IgnoreCase);
-
-
-                            Match rlMatch = rlRegex.Match(reader);
-
-                            if (rlMatch.Success) {
-                                for (int i = 1; i <= 8; i++) {
-                                    string valueStr = rlMatch.Groups[i].Value.Trim();
-                                    double returnLossValue;
-
-                                    if (double.TryParse(valueStr, out returnLossValue)) {
-                                        if (returnLossValue < 10.0) {
-                                            returnLossPassed = false;
-                                            if (bootcount < 0) // assuming bootcount is in your scope
-                                            {
-                                                logger[slot].tfailed.Add(new TestFailed { TestName = "ReturnLoss  : Path " + i, Value = returnLossValue, Result = "FAIL", ErrorCodes = "TT045" });
-                                                string failKey = $"ReturnLoss : Path {i}";
-                                                string failDetails = $"Fail: {valueStr}";
-                                                failResultscom[failKey] = failDetails;
-                                            }
-                                            logEntries.Add(($" Path {i} Failed ReturnLoss =  {valueStr} dB\n", Color.Red)); //Failing
-                                            /*testLog.SelectionColor = Color.Red;
-                                            testLog.AppendText($" Path {i} FailedReturnLoss =  {valueStr} dB\n");
-                                            testLog.SelectionColor = Color.Black;*/
-                                        } else {
-                                            logEntries.Add(($" Path {i} Passed ReturnLoss =  {valueStr} dB\n", Color.Black)); //Passing
-                                                                                                                              //testLog.AppendText($" Path {i} Passed ReturnLoss =  {valueStr} dB\n");
-                                        }
-                                    }
-                                }
-                                this.Invoke(new MethodInvoker(() => {
-                                    foreach (var entry in logEntries) {
-                                        testLog.SelectionColor = entry.Color;
-                                        testLog.AppendText(entry.Text);
-                                    }
-                                    testLog.SelectionColor = Color.Black;
-                                    testLog.AppendText("\n");
-                                }));
-                                logEntries.Clear();
-                            }
-
-                            if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
-                            #endregion
-
-                            reader = SendPortCommand(port, "boardInvtShow", "UShell >");
-                            ParseBoardInvt(reader, serialNumber, testLog);
-                            WritetoFile(logfile, slot, reader);
-                            foreach (string line in reader.Split("\r\n")) {
-                                if (line.Contains("FW Version") && !line.Contains("Safe")) {
-                                    var values = line.Split(new String[] { " " }, StringSplitOptions.RemoveEmptyEntries);
-                                    logger[slot].tlog.Firmware = values[4].Trim();
-                                }
-                            }
-                            if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
-
-                            if (bootcount > 0) {
-                                AlarmpnotPresent = true;
-                                txPowerPassed = true;
-                                rssiPassed = true;
-                                bootcount--;
-                            }
-
-                            Thread.Sleep(25000);
-
-                        }
-                        while (DateTime.Now < agingTime && AlarmpnotPresent && txPowerPassed && rssiPassed && returnLossPassed);
-                    EndTest:;
-                    }
-                    catch (Exception ex) {
-                        File.AppendAllText(@"C:\Test_CTDI\ErrorLog.txt", DateTime.Now.ToString() + "\n" + ex.ToString() + "\n\n");
-                    }
-                #endregion
-
-                EndTest1:;
-                    this.Invoke(new MethodInvoker(delegate {
-                        timer[slot - 1].Stop();
-                    }));
-
-                    #region Final Condition Checks 
-
-                    bool isTestStopped = testStop[slot - 1];
-                    bool isConnectionLost = reader.Contains("!fail!") || CertificateIsValid == false;
-                    bool isSnVerificationFailed = SnVerification == false;
-                    bool isTestPassed = AlarmpnotPresent && txPowerPassed && rssiPassed && returnLossPassed && !isTestStopped && isConnectionLost == false;
-
-                    if (isTestPassed) {
-                        logger[slot].tlog.OverallResult = "PASS";
-
-                        stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
-                        agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-
-                        stopLoadingInCell((int)AgingDataRow.RF_Parameters, slot);
-                        agingGridView.Rows[(int)AgingDataRow.RF_Parameters].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-
-                        stopLoadingInCell((int)AgingDataRow.Alarms, slot);
-                        agingGridView.Rows[(int)AgingDataRow.Alarms].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-
-                        stopLoadingInCell((int)AgingDataRow.Result, slot);
-                        agingGridView.Rows[(int)AgingDataRow.Result].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-
-                        // Open port if not open
-                        try {
-                            if (!port.IsOpen) {
-                                port.Open();
-                            }
-                        }
-                        catch (Exception ex) { }
-
-
-                        reader = SendPortCommand(port, "exit", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "getinv", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "gettail 0", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = string.Empty;
-                        bool secureIsTrue = false;
-                        port.WriteLine("cat /proc/sys/platform/etc/secureboot_status");
-                        Thread.Sleep(1000);
-                        reader = ReadPort(port);
-                        WritetoFile(logfile, slot, reader);
-                        foreach (string line in reader.Split("\r\n")) {
-                            if (line.Length == 1 && line.Contains("1")) {
-                                secureIsTrue = true;
-                            }
-                        }
-                        if (secureIsTrue) {
-                            this.Invoke(new MethodInvoker(delegate {
-                                testLog.AppendText("Secure boot is enabled\n");
-                            }));
-                        } else {
-                            this.Invoke(new MethodInvoker(delegate {
-                                testLog.SelectionColor = Color.Red;
-                                testLog.AppendText("Secure boot is not enabled\n");
-                                testLog.SelectionColor = Color.Black;
-                            }));
-                        }
-                        reader = SendPortCommand(port, "disfilever /mnt/storage/slot_1/pkg/bin/*", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "disfilever /mnt/storage/slot_2/pkg/bin/*", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "/pkg/tools/certinstall.van valid_mc", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-
-                        if (!reader.Contains("SYS_CERT_OK")) {
-                            this.Invoke(new MethodInvoker(delegate {
-                                testLog.SelectionColor = Color.Red;
-                                testLog.AppendText("Certification Is Invalid\n");
-                                testLog.SelectionColor = Color.Black;
-                            }));
-                            CertificateIsValid = false;
-                            goto EndTest1;
-
-                        } else {
-                            this.Invoke(new MethodInvoker(delegate {
-                                testLog.AppendText("Vendor cert chain is valid\n");
-                            }));
-                        }
-
-                        reader = SendPortCommand(port, "printenv", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "delenv p VLAN_LOW", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "delenv p VLAN_HIGH", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "delenv p VLAN_DIS", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "setenv p BOOT_CONSOLE_LOG NO", "root@");
-                        WritetoFile(logfile, slot, reader);
-
-                        reader = SendPortCommand(port, "ushell", "UShell >");
-                        WritetoFile(logfile, slot, reader);
-
-                        port.WriteLine("console off");
-                        Thread.Sleep(1000);
-                        reader = ReadPort(port);
-                        WritetoFile(logfile, slot, reader);
-
-
-                    }
-                    // Handle connection loss
-                    else if (isConnectionLost) {
-                        if (reader.Contains("!fail!")) {
-                            this.Invoke(new MethodInvoker(delegate {
-                                testLog.AppendText("Connection to unit lost. No output detected\n");
-                            }));
-
-                            stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
-                            agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
-
-                            if (SnVerification == true) {
-                                stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
-                                agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-                            } else {
-                                stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
-                                agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.LostConnection];
-                            }
-
-                            // Reset the test status for other rows
-                            foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result }) {
-                                stopLoadingInCell(row, slot);
-                                agingGridView.Rows[row].Cells[slot].Value = currentTestStatus[TestStatus.LostConnection];
-                            }
-                        } else if (CertificateIsValid == false) {
-
-                            stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
-                            agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-
-                            if (SnVerification == true) {
-                                stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
-                                agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-                            } else {
-                                stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
-                                agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.LostConnection];
-                            }
-
-                            // Reset the test status for other rows
-                            foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result }) {
-                                stopLoadingInCell(row, slot);
-                                agingGridView.Rows[row].Cells[slot].Value = currentTestStatus[TestStatus.ToBeTested];
-                            }
-                        }
-
-
-                        logger[slot].tlog.OverallResult = "FAIL";
-                    } // Handle test stop
-                    else if (isTestStopped) {
-                        stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
-                        agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.Stopped];
-
-                        stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
-                        agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = SnVerification ? currentTestStatus[TestStatus.IsPassing] : currentTestStatus[TestStatus.Stopped];
-
-                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result }) {
-                            stopLoadingInCell(row, slot);
-                            agingGridView.Rows[row].Cells[slot].Value = currentTestStatus[TestStatus.Stopped];
-                        }
-
-                        logger[slot].tlog.OverallResult = "TEST STOP";
-                    }
-
-                    // Handle general failures
-                    else {
-                        logger[slot].tlog.OverallResult = "FAIL";
-
-                        // Handle RF Parameters failure
-                        if (!txPowerPassed || !rssiPassed) {
-                            stopLoadingInCell((int)AgingDataRow.RF_Parameters, slot);
-                            agingGridView.Rows[(int)AgingDataRow.RF_Parameters].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
-
-                            if (AlarmpnotPresent) {
-                                stopLoadingInCell((int)AgingDataRow.Alarms, slot);
-                                agingGridView.Rows[(int)AgingDataRow.Alarms].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-                            }
-                        }
-
-                        // Handle Alarms failure
-                        if (!AlarmpnotPresent) {
-                            if (txPowerPassed && rssiPassed) {
-                                stopLoadingInCell((int)AgingDataRow.RF_Parameters, slot);
-                                agingGridView.Rows[(int)AgingDataRow.RF_Parameters].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-                            }
-
-                            stopLoadingInCell((int)AgingDataRow.Alarms, slot);
-                            agingGridView.Rows[(int)AgingDataRow.Alarms].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
-                        }
-
-                        // Handle Result failure
-                        if (!AlarmpnotPresent || !txPowerPassed || !rssiPassed) {
-                            stopLoadingInCell((int)AgingDataRow.Result, slot);
-                            agingGridView.Rows[(int)AgingDataRow.Result].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
-                        }
-                    }
-                    #endregion
-
                     #region T Drive Log Transfer
-                    try {
-                        // Always copy to local log path
-                        //File.Copy(logfile, LogFileList[0], overwrite: true);
-
-                        // Then try to copy to network path if available
-                        if (!string.IsNullOrEmpty(LogFileList[1])) {
-                            string driveRoot = IOPath.GetPathRoot(LogFileList[1]); // usually "T:\"
-                            if (Directory.Exists(driveRoot)) // T drive must be mapped
-                            {
-                                File.Copy(logfile, LogFileList[1], overwrite: true);
-                            } else {
-                                this.Invoke(new MethodInvoker(delegate {
-                                    testLog.AppendText("T drive unavailable\n");
-                                }));
-                            }
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(LogFileList[1]))
+                        {
+                            string destDir = IOPath.GetDirectoryName(LogFileList[1]);
+                            Directory.CreateDirectory(destDir);
+                            File.Copy(logfile, LogFileList[1], true);
                         }
                     }
-                    catch (Exception ex) {
-                        this.Invoke(new MethodInvoker(delegate {
-                            testLog.AppendText($"Log copy error: {ex.Message}\n");
-                        }));
+                    catch (Exception ex)
+                    {
+                        Task.Run(() => { MessageBox.Show("Failed to copy log to T: drive\n" + ex.ToString()); });
                     }
                     #endregion
-
-                    #region Fail Test Directory 
-                    if (!isTestPassed) {
-                        try {
-                            // To display the dictionary contents in the RichTextBox
-                            this.Invoke(new MethodInvoker(delegate {
-                                testLog.AppendText("\r\n" + "********** Fail Results **********" + "\r\n");
-                                foreach (var entry in failResultscom) {
-                                    testLog.SelectionColor = Color.Red;
-                                    testLog.AppendText($"Test: {entry.Key} => {entry.Value}\r\n");
-                                    testLog.SelectionColor = Color.Black;
-                                }
-
-                                // Write to log file
-                                string failResultsText = "";
-                                foreach (var entry in failResultscom) {
-                                    failResultsText += $"Test: {entry.Key} => {entry.Value}\r\n";
-                                }
-                                File.AppendAllText(logfile, "\nElapsed Time: " + ReturnTimeStamp(slot) + "\n" + failResultsText + "\n");
-                                testLog.AppendText("\r\n" + "***********************************" + "\r\n");
-                            }));
-
-                        }
-                        catch (Exception ex) {
-                            WritetoFile(logfile, slot, ex.ToString());
-                        }
-                        this.Invoke(new MethodInvoker(delegate {
-                            testLog.SelectionColor = Color.Red;
-                            testLog.AppendText("\n" + "Aging Test Fail...!" + "\n");
-                            testLog.SelectionColor = Color.Black;
-                        }));
-
-                    } else {
-                        this.Invoke(new MethodInvoker(delegate {
-                            testLog.SelectionColor = Color.Green;
-                            testLog.AppendText("\n" + "Aging Test Pass...!" + "\n");
-                            testLog.SelectionColor = Color.Black;
-                        }));
-
-                    }
-                    #endregion
-
-                    #region OLP Data Entry 
-                    if (testStop[slot - 1] == false && !reader.Contains("!fail!")) {
-                        if (txPowerPassed == true && rssiPassed == true && returnLossPassed == true && AlarmpnotPresent == true) {
-                            logger[slot].tfailed.Add(new TestFailed { TestName = "Tx Power 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
-                            logger[slot].tfailed.Add(new TestFailed { TestName = "RSSI 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
-                            logger[slot].tfailed.Add(new TestFailed { TestName = "Return Loss 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
-                            logger[slot].tfailed.Add(new TestFailed { TestName = "Alarm : ", Result = "PASS", ErrorCodes = "NA" });
-                        }
-
-
-                        logger[slot].tlog.WorkStation = "ORAN Aging";
-                        logger[slot].tlog.SerialNumber = serialNumber;
-                        logger[slot].tlog.DateTime = DateTime.Now.ToString();
-                        logger[slot].tlog.SlotID = slot.ToString();
-                        logger[slot].tlog.BurnHr = modelSelector.hours.ToString();
-                        //logger[slot].tlog.Firmware = FirmwareVersion.ToString();
-                        logger[slot].tlog.Model = modelNumber.ToString();
-                        logger[slot].tlog.Locations = "LakeSide 701";
-
-                        bool Ftp_FileisCopied = logger[slot].WriteToLog(serialNumber);
-                        logger[slot].tfailed.Clear();
-
-                        if (Ftp_FileisCopied == true) {
-                            this.Invoke(new MethodInvoker(delegate {
-                                testLog.SelectionColor = Color.DarkBlue;
-                                testLog.AppendText("Json Copied to the Server...!\n");
-                                testLog.SelectionColor = Color.Black;
-                            }));
-                        } else {
-                            this.Invoke(new MethodInvoker(delegate {
-                                testLog.SelectionColor = Color.Red;
-                                testLog.AppendText("Unable to copy the file to the Server...!\n");
-                                testLog.SelectionColor = Color.Black;
-                            }));
-
-                        }
-
-                    }
-                    #endregion
-
-                    this.Invoke(new MethodInvoker(() => {
-                        testLog.SelectionColor = Color.DarkBlue;
-                        testLog.AppendText(
-                    "**============================================" + Environment.NewLine +
-                    "* *Date:          " + DateTime.Now.ToString("yyyy - MM - dd") + Environment.NewLine
-                    + "** Serial Number: " + serialNumber + Environment.NewLine
-                    + "** Model Number:  " + modelNumber + Environment.NewLine
-                    + "** Slot:          " + slot + Environment.NewLine
-                    + "** App Ver.       V5.4" + Environment.NewLine
-                    + "** Com Port  " + port.PortName + Environment.NewLine
-                    + "** Aging Location:          " + location + Environment.NewLine
-                    + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
-        + "**============================================" + Environment.NewLine + "\n");
-                        testLog.SelectionColor = Color.Black;
-                    }));
-
-                    File.AppendAllText(logfile, "\n"
-                      + "**============================================" + Environment.NewLine +
-                    "* *Date:          " + DateTime.Now.ToString("yyyy - MM - dd") + Environment.NewLine
-                   + "** Serial Number: " + serialNumber + Environment.NewLine
-                   + "** Model Number:  " + modelNumber + Environment.NewLine
-                   + "** Slot:          " + slot + Environment.NewLine
-                   + "** App Ver.       V5.4" + Environment.NewLine
-                   + "** Com Port  " + port.PortName + Environment.NewLine
-                   + "** Aging Location:          " + location + Environment.NewLine
-                   + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
-                       + "**============================================" + Environment.NewLine);
-
-                    File.AppendAllText(logfile, "\nTest Ended: " + ReturnTimeStamp(slot));
-
-                    try {
-                        this.Invoke(new MethodInvoker(delegate {
-                            testLog.AppendText("\r\n" + "********** Fail Results **********" + "\r\n");
-
-                            foreach (var entry in failResultscom) {
-                                testLog.SelectionColor = Color.Red;
-                                testLog.AppendText($"Test: {entry.Key} => {entry.Value}\r\n");
-                                testLog.SelectionColor = Color.Black;
-                            }
-
-                            // Write to log file
-                            string failResultsText = "";
-                            foreach (var entry in failResultscom) {
-                                failResultsText += $"Test: {entry.Key} => {entry.Value}\r\n";
-                            }
-
-
-                            WritetoFile(logfile, slot, failResultsText);
-                            testLog.AppendText("\r\n" + "***********************************" + "\r\n");
-                        }));
-                    }//This bracket is to end the  using (SerialPort port = new SerialPort) on line 2277
-                    catch { }
                     port.Close();
                 }
 
+
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 this.Invoke(new MethodInvoker(delegate {
                     testLog.AppendText($"Log copy error: {ex.Message}\n");
                 }));
@@ -3321,19 +2674,23 @@ namespace ORAN_Aging
         #endregion
 
         #region AGING FAT LOLO MAIN FUNCTION
-        private void StartFatLOLOAging(int slot, string serialNumber, string modelNumber, ModelSelector modelSelector, int hours, RichTextBox testLog) {
-            if (modelSelector.comName == "" || modelSelector.comName == null) {
+        private void StartFatLOLOAging(int slot, string serialNumber, string modelNumber, ModelSelector modelSelector, int hours, RichTextBox testLog)
+        {
+            if (modelSelector.comName == "" || modelSelector.comName == null)
+            {
                 this.Invoke(new MethodInvoker(() => {
                     testLog.AppendText("Com port not selected");
                 }));
-                for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++) {
+                for (int i = (int)AgingDataRow.Boot_Up; i < (int)AgingDataRow.Timer; i++)
+                {
                     stopLoadingInCell(i, slot);
                     agingGridView.Rows[i].Cells[slot].Value = currentTestStatus[TestStatus.Blank];
                 }
                 agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Value = "";
                 return;
             }
-            try {
+            try
+            {
                 Dictionary<string, string> failResults = new Dictionary<string, string>();
                 StartBackgroundTask(slot);
                 this.Invoke(new MethodInvoker(delegate {
@@ -3358,7 +2715,7 @@ namespace ORAN_Aging
                 List<(string Text, System.Drawing.Color Color)> logEntries = new List<(string, System.Drawing.Color Color)>();
                 List<string> LogFileList = LogBuilder(serialNumber, modelNumber);
                 Dictionary<string, string> failResultscom = new Dictionary<string, string>();
-                string location = "Lakeside";
+                string location = "Facility 1";
                 string logfile = LogFileList[0];
                 if (!logger.ContainsKey(slot))
                     logger[slot] = new LogHandler();
@@ -3371,7 +2728,7 @@ namespace ORAN_Aging
                 + "** Serial Number: " + serialNumber + Environment.NewLine
                 + "** Model Number:  " + modelNumber + Environment.NewLine
                 + "** Slot:          " + slot + Environment.NewLine
-                + "** App Ver.       V5.4" + Environment.NewLine
+                + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                 + "** Com Port  " + modelSelector.comName + Environment.NewLine
                 + "** Aging Location:          " + location + Environment.NewLine
                 + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
@@ -3386,7 +2743,7 @@ namespace ORAN_Aging
                 + "** Serial Number: " + serialNumber + Environment.NewLine
                 + "** Model Number:  " + modelNumber + Environment.NewLine
                 + "** Slot:          " + slot + Environment.NewLine
-                + "** App Ver.       V5.4" + Environment.NewLine
+                + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                 + "** Com Port  " + modelSelector.comName + Environment.NewLine
                 + "** Aging Location:          " + location + Environment.NewLine
                 + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
@@ -3395,7 +2752,7 @@ namespace ORAN_Aging
                 }));
                 agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Style.Font = new Font("Digital-7", 16F, FontStyle.Regular);
                 agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Style.ForeColor = Color.DarkGreen;
-                agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Value = agingTime.ToString("TBD");
+                agingGridView.Rows[(int)AgingDataRow.Finish_Time].Cells[slot].Value = "TBD";
 
                 this.Invoke(new MethodInvoker(delegate {
                     testLog.SelectionColor = Color.Green;
@@ -3404,7 +2761,8 @@ namespace ORAN_Aging
                 }));
                 StringBuilder dataBuildercom = new StringBuilder();
                 bool skipSetup = false;
-                using (SerialPort port = new SerialPort(modelSelector.comName)) {
+                using (SerialPort port = new SerialPort(modelSelector.comName))
+                {
                     port.BaudRate = 115200;
                     port.Parity = Parity.None;
                     port.StopBits = StopBits.One;
@@ -3412,7 +2770,8 @@ namespace ORAN_Aging
                     port.WriteLine("");
                     Thread.Sleep(300);
                     string reader = ReadPort(port);
-                    if (reader.Contains("UShell >")) {
+                    if (reader.Contains("UShell >"))
+                    {
                         skipSetup = true;
 
                         agingTime = DateTime.Now.AddHours(hours);
@@ -3423,10 +2782,10 @@ namespace ORAN_Aging
                             testLog.AppendText("Test has started at:\n" + DateTime.Now.ToString("hh:mm tt") + "\nWill be done by:\n" + timeCheck[slot - 1] + "\n");
                         }));
 
-                        reader = SendPortCommand(port, "exit", ">");
+                        reader = SendPortCommand(port, "exit", ">", modelNumber);
                         WritetoFile(logfile, slot, reader);
 
-                        reader = SendPortCommand(port, "printenv", ">");
+                        reader = SendPortCommand(port, "printenv", ">", modelNumber);
                         WritetoFile(logfile, slot, reader);
 
                         this.Invoke(new MethodInvoker(delegate {
@@ -3436,17 +2795,23 @@ namespace ORAN_Aging
                             testLog.SelectionColor = Color.Black;
                         }));
 
-                        reader = SendPortCommand(port, "gettail 0", ">");
+                        reader = SendPortCommand(port, "gettail 0", ">", modelNumber);
                         WritetoFile(logfile, slot, reader);
 
-                        reader = SendPortCommand(port, "ushell", "UShell >");
+                        reader = SendPortCommand(port, "ushell", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
 
                         goto SkipSetup;
                     }
+                    else if (reader.Contains("WARNING:"))
+                    {
+                        goto SkipSetup;
+
+                    }
 
                     #region Unlock Unit
-                    while (!reader.Contains("<INTERRUPT>") && !testStop[slot - 1]) {
+                    while (!reader.Contains("<INTERRUPT>") && !testStop[slot - 1])
+                    {
                         port.Write(interrupt, 0, 1);
                         Thread.Sleep(300);
                         reader += port.ReadExisting();
@@ -3457,7 +2822,7 @@ namespace ORAN_Aging
                         goto EndTest;
 
                     // Login to U-Boot
-                    reader = SendPortCommand(port, UbootPassword, "uRU>>");
+                    reader = SendPortCommand(port, "REDACTED_PASSWORD", "uRU>>", modelNumber);
                     WritetoFile(logfile, slot, reader);
                     // Set environment variables
                     string[] commands = new[]
@@ -3467,8 +2832,9 @@ namespace ORAN_Aging
     "printenv"
 };
 
-                    foreach (var cmd in commands) {
-                        reader = SendPortCommand(port, cmd, "uRU>>");
+                    foreach (var cmd in commands)
+                    {
+                        reader = SendPortCommand(port, cmd, "uRU>>", modelNumber);
                         WritetoFile(logfile, slot, reader);
                     }
 
@@ -3500,7 +2866,8 @@ namespace ORAN_Aging
                     StringBuilder dataBuilderCom = new StringBuilder();
                     DateTime bootTimeout = DateTime.Now.AddMinutes(5);
 
-                    while (DateTime.Now < bootTimeout) {
+                    while (DateTime.Now < bootTimeout)
+                    {
                         if (testStop[slot - 1] || reader.Contains("!fail!"))
                             goto EndTest;
 
@@ -3511,8 +2878,9 @@ namespace ORAN_Aging
                         string bootString = dataBuilderCom.ToString();
 
                         if (bootString.Contains("Redirect stdout to /dev/console") ||
-                            bootString.Contains("Copyright (C), 2001-2015, Samsung Electronic Co., Ltd.") ||
-                            bootString.Contains("RU_RF4461D-13A login:")) {
+                            bootString.Contains("Copyright (C), 2001-2015, Acme Electronic Co., Ltd.") ||
+                            bootString.Contains("RU_MODEL_B login:"))
+                        {
                             WritetoFile(logfile, slot, bootString);
                             break;
                         }
@@ -3521,47 +2889,47 @@ namespace ORAN_Aging
                     dataBuildercom.Clear();
 
                     reader = string.Empty;
-                    reader = SendPortCommand(port, "user", "Password:");
+                    reader = SendPortCommand(port, "user", "Password:", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, DeviceMgmtPassword, "user@");
+                    reader = SendPortCommand(port, "REDACTED_PASSWORD", "user@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "su -", "Password:");
+                    reader = SendPortCommand(port, "su -", "Password:", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, DeviceRootPassword, "root@");
+                    reader = SendPortCommand(port, "REDACTED_PASSWORD", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "printenv", "root@");
+                    reader = SendPortCommand(port, "printenv", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "delenv p VLAN_LOW", "root@");
+                    reader = SendPortCommand(port, "delenv p VLAN_LOW", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "delenv p VLAN_HIGH", "root@");
+                    reader = SendPortCommand(port, "delenv p VLAN_HIGH", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "delenv p VLAN_SEL", "root@");
+                    reader = SendPortCommand(port, "delenv p VLAN_SEL", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "delenv p VLAN_DIS", "root@");
+                    reader = SendPortCommand(port, "delenv p VLAN_DIS", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "delenv p AUTO_NEGO_STATUS", "root@");
+                    reader = SendPortCommand(port, "delenv p AUTO_NEGO_STATUS", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "delenv p slot#0", "root@");
+                    reader = SendPortCommand(port, "delenv p slot#0", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "delenv p slot#1", "root@");
+                    reader = SendPortCommand(port, "delenv p slot#1", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "delenv p slot#2", "root@");
+                    reader = SendPortCommand(port, "delenv p slot#2", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
                     reader = string.Empty;
-                    reader = SendPortCommand(port, "printenv", "root@");
+                    reader = SendPortCommand(port, "printenv", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
                     this.Invoke(new MethodInvoker(delegate {
                         testLog.SelectionColor = Color.DarkBlue;
@@ -3570,16 +2938,16 @@ namespace ORAN_Aging
                         testLog.SelectionColor = Color.Black;
                     }));
 
-                    reader = SendPortCommand(port, "printenv | grep VLAN", "root@");
+                    reader = SendPortCommand(port, "printenv | grep VLAN", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "rm -rf /mnt/storage_misc/dhcp_*", "root@");
+                    reader = SendPortCommand(port, "rm -rf /mnt/storage_misc/dhcp_*", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "ls -al /mnt/storage_misc/dhcp_*", "root@");
+                    reader = SendPortCommand(port, "ls -al /mnt/storage_misc/dhcp_*", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
-                    reader = SendPortCommand(port, "ucmd INTF_PowerReset", "root@");
+                    reader = SendPortCommand(port, "ucmd INTF_PowerReset", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
 
                     this.Invoke(new MethodInvoker(delegate {
@@ -3588,13 +2956,16 @@ namespace ORAN_Aging
                     #endregion
 
                     DateTime timeToCheck = DateTime.Now.AddMinutes(5);
-                    while (DateTime.Now < timeToCheck) {
+                    while (DateTime.Now < timeToCheck)
+                    {
                         if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
                         reader = ReadPort(port);
                         dataBuildercom.Append(reader);
-                        string bootstring = dataBuildercom.ToString();  // Store accumulated string RU_RF4461D-13A login:
-                        if (bootstring.Contains("Redirect stdout to /dev/console") || bootstring.Contains("Copyright (C), 2001-2015, Samsung Electronic Co., Ltd.") || bootstring.Contains("RU_RF4461D-13A login:")) {
-                            for (int i = 0; i < 20; i++) {
+                        string bootstring = dataBuildercom.ToString();  // Store accumulated string RU_MODEL_B login:
+                        if (bootstring.Contains("Redirect stdout to /dev/console") || bootstring.Contains("Copyright (C), 2001-2015, Acme Electronic Co., Ltd.") || bootstring.Contains("RU_MODEL_B login:"))
+                        {
+                            for (int i = 0; i < 20; i++)
+                            {
                                 Thread.Sleep(5000);  // Wait for 6 seconds (5000 milliseconds)
                             }
                             WritetoFile(logfile, slot, bootstring);
@@ -3615,61 +2986,60 @@ namespace ORAN_Aging
                     bool skipWait = false;
 
                     reader = string.Empty;
-                    try {
+                    try
+                    {
                         #region Unit Login 
-                        if (!skipSetup) {
-                            reader = SendPortCommand(port, "user", "Password:");
+                        if (!skipSetup)
+                        {
+                            reader = SendPortCommand(port, "user", "Password:", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                            reader = SendPortCommand(port, DeviceRootPassword, "user@");
+                            reader = SendPortCommand(port, "REDACTED_PASSWORD", "user@", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                            reader = SendPortCommand(port, "su -", "Password:");
+                            reader = SendPortCommand(port, "su -", "Password:", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                            reader = SendPortCommand(port, DeviceRootPassword, "root@");
+                            reader = SendPortCommand(port, "REDACTED_PASSWORD", "root@", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                            reader = SendPortCommand(port, "ushell", "UShell >");
+                            reader = SendPortCommand(port, "ushell", "UShell >", modelNumber);
                             WritetoFile(logfile, slot, reader);
                             if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
                         }
                     }
-                    catch (Exception ex) {
-                        File.AppendAllText(@"C:\Test_CTDI\ErrorLog.txt", DateTime.Now.ToString() + "\n" + ex.ToString() + "\n\n");
+                    catch (Exception ex)
+                    {
+                        File.AppendAllText(@"C:\Test_TechCo\ErrorLog.txt", DateTime.Now.ToString() + "\n" + ex.ToString() + "\n\n");
                     }
                     //---------------------------SET UP START-----------------//
                     #endregion
+
                     #region SNVerification 
-                    reader = SendPortCommand(port, "boardInvtShow", "UShell >");
+                    reader = SendPortCommand(port, "boardInvtShow", "UShell >", modelNumber);
                     WritetoFile(logfile, slot, reader);
                     if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto StopImmediately; }
 
                     //Need to add stuff for passing and failing here.
-                    if (!snIsVerified) {
+                    if (!snIsVerified)
+                    {
                         SnVerification = ParseBoardInvt(reader, serialNumber, testLog);
-                        foreach (string line in reader.Split("\r\n")) {
-                            if (line.Contains("FW Version") && !line.Contains("Safe")) {
+                        foreach (string line in reader.Split("\r\n"))
+                        {
+                            if (line.Contains("FW Version") && !line.Contains("Safe"))
+                            {
                                 var values = line.Split(new String[] { " " }, StringSplitOptions.RemoveEmptyEntries);
                                 logger[slot].tlog.Firmware = values[4].Trim();
-                                if (!values[4].Contains("24")) {
-                                    this.Invoke(new MethodInvoker(delegate {
-                                        testLog.SelectionColor = Color.Red;
-                                        testLog.AppendText("Firmware Version : " + values[4] + "\n");
-                                        testLog.SelectionColor = Color.Black;
-                                    }));
-                                    FirmwareVersion = values[4].Trim();
-                                } else {
-                                    this.Invoke(new MethodInvoker(delegate {
-                                        testLog.SelectionColor = Color.Green;
-                                        testLog.AppendText("Firmware Version : " + values[4] + "\n");
-                                        testLog.SelectionColor = Color.Black;
-                                    }));
-                                }
+                                this.Invoke(new MethodInvoker(delegate {
+                                    testLog.SelectionColor = Color.Green;
+                                    testLog.AppendText("Firmware Version : " + values[4] + "\n");
+                                    testLog.SelectionColor = Color.Black;
+                                }));
+
                             }
 
                         }
@@ -3682,229 +3052,17 @@ namespace ORAN_Aging
                         agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
 
 
-                    } else if (SnVerification == false) {
+                    }
+                    else if (SnVerification == false)
+                    {
                         goto StopImmediately;
                     }
                     #endregion
-                    #region Full Power Commands
-                    reader = SendPortCommand(port, "gulInitialDiagnosticPause=1", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                    reader = SendPortCommand(port, "INTF_Set_Pattern_Data", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_Set_Pattern_Active", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "almchg 4 7 3 100", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "almchg 21 7 3 100", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    //fa conf // sig. sus disable
-                    reader = SendPortCommand(port, "TestAddFA 0 0xF 0xF 751000 782000 10000 32 4600 0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "TestAddFA 1 0xF0 0xF0  876500 831500 10000 32 4600 0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "TestTurnOnPath 0 0xF 0xF", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test -w 0x88029840 4 0x0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test -w 0x88028038 4 0x0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test -w 0x88029848 4 0x0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test -w 0x88029848 4 0xF", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    // fw_switch auto // sig. sus disable // fw_switch auto
-
-                    reader = SendPortCommand(port, "mem_test 0x8802a054 4 0x0 -w", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "TestTurnOnPath 1 0xFF 0xFF", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test -w 0x98029840 4 0x0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test -w 0x98028038 4 0x0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test -w 0x98029848 4 0x0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test -w 0x98029848 4 0xF", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test 0x9802a054 4 0x0 -w", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    // mapper (10G, 10M)
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 0 0x0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 1 0x1", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 02 0x2", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 3 0x3", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 8 0x10", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 9 0x11", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 10 0x12", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 11 0x13", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 16 0x20", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 17 0x21", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 18 0x22", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 19 0x23", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 24 0x30", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 25 0x31", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 26 0x32", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 0 0 27 0x33", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    // mapper (10G, 10M)
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 0 0x0", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 1 0x1", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 02 0x2", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 3 0x3", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 8 0x10", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 9 0x11", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 10 0x12", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 11 0x13", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 16 0x20", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 17 0x21", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 18 0x22", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 19 0x23", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 24 0x30", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 25 0x31", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 26 0x32", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "INTF_DL_MapperAddressBufferSet 1 0 27 0x33", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    // fw_switch (tracking cal)
-
-                    reader = SendPortCommand(port, "mem_test 0x8802a054 4 0x2 -w", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
-
-                    reader = SendPortCommand(port, "mem_test 0x9802a054 4 0x2 -w", "UShell >");
-                    WritetoFile(logfile, slot, reader);
-                    if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
+                    #region XL_Setup
+                    FAT_LOLO fat_LOLO = new FAT_LOLO();
+                    fat_LOLO.SetupVZ_XLLOLO(port, logfile, slot);
+                    fat_LOLO = null;
 
                     this.Invoke(new MethodInvoker(delegate {
                         testLog.AppendText("Setup is complete\n");
@@ -3913,39 +3071,42 @@ namespace ORAN_Aging
                         testLog.AppendText("Full power wait has started. Test will continue after 5 minutes.!\n");
                     }));
 
-                    for (int i = 0; i < 60; i++) {
+                    for (int i = 0; i < 60; i++)
+                    {
+                        if (testStop[slot - 1] == true || DateTime.Now > agingTime) { goto StopImmediately; }
                         port.WriteLine("");
                         Thread.Sleep(5000);  // Wait for 5 seconds (5000 milliseconds)
                     }
-                    #endregion
-
+                    #endregion XL_Setup
                     #region Root Gettail and Getinv Reading 
 
-                    reader = SendPortCommand(port, "exit", "root@");
+                    reader = SendPortCommand(port, "exit", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
                     if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                    reader = SendPortCommand(port, "printenv", "root@");
+                    reader = SendPortCommand(port, "printenv", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
                     if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                    reader = SendPortCommand(port, "getinv", "root@");
+                    reader = SendPortCommand(port, "getinv", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
                     if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                    reader = SendPortCommand(port, "gettail 0", "root@");
+                    reader = SendPortCommand(port, "gettail 0", "root@", modelNumber);
                     WritetoFile(logfile, slot, reader);
                     if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
 
-                    reader = SendPortCommand(port, "ushell", "UShell >");
+                    reader = SendPortCommand(port, "ushell", "UShell >", modelNumber);
                     WritetoFile(logfile, slot, reader);
                     if (testStop[slot - 1] == true || reader.Contains("!fail!")) { goto EndTest; }
                     #endregion
 
                     #region Aging Loop
-                    do {
+                    do
+                    {
                         this.Invoke(() => {
-                            if (testLog.TextLength > 100000) {
+                            if (testLog.TextLength > 100000)
+                            {
                                 testLog.Clear();
                                 testLog.SelectionColor = Color.DarkBlue;
                                 testLog.AppendText(
@@ -3954,7 +3115,7 @@ namespace ORAN_Aging
                                     + "** Serial Number: " + serialNumber + Environment.NewLine
                                     + "** Model Number:  " + modelNumber + Environment.NewLine
                                     + "** Slot:          " + slot + Environment.NewLine
-                                    + "** App Ver.       V5.4" + Environment.NewLine
+                                    + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                                     + "** Com Port       " + modelSelector.comName + Environment.NewLine
                                     + "** Aging Location:" + location + Environment.NewLine
                                     + "** Burn Hours:    " + modelSelector.hours + Environment.NewLine
@@ -3964,80 +3125,83 @@ namespace ORAN_Aging
                                 testLog.AppendText("** Log compacted due to size threshold **\n\n");
                             }
                         });
-                        if (testStop[slot - 1]) {
+                        if (testStop[slot - 1])
+                        {
                             goto EndTest;
                         }
 
-                        reader = SendPortCommand(port, "boardInvtShow", "UShell >");
+                        reader = SendPortCommand(port, "boardInvtShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
-                        if (!snIsVerified) {
+                        if (!snIsVerified)
+                        {
                             SnVerification = ParseBoardInvt(reader, serialNumber, testLog);
-                            foreach (string line in reader.Split("\r\n")) {
-                                if (line.Contains("FW Version") && !line.Contains("Safe")) {
+                            foreach (string line in reader.Split("\r\n"))
+                            {
+                                if (line.Contains("FW Version") && !line.Contains("Safe"))
+                                {
                                     var values = line.Split(new String[] { " " }, StringSplitOptions.RemoveEmptyEntries);
                                     logger[slot].tlog.Firmware = values[4].Trim();
-                                    if (!values[4].Contains("24")) {
-                                        this.Invoke(new MethodInvoker(delegate {
-                                            testLog.SelectionColor = Color.Red;
-                                            testLog.AppendText("Firmware Version : " + values[4] + "\n");
-                                            testLog.SelectionColor = Color.Black;
-                                        }));
-                                        unitIsFlagged = true;
-                                        FirmwareVersion = values[4].Trim();
-                                    } else {
-                                        this.Invoke(new MethodInvoker(delegate {
-                                            testLog.SelectionColor = Color.Green;
-                                            testLog.AppendText("Firmware Version : " + values[4] + "\n");
-                                            testLog.SelectionColor = Color.Black;
-                                        }));
-                                    }
+                                    this.Invoke(new MethodInvoker(delegate {
+                                        testLog.SelectionColor = Color.Green;
+                                        testLog.AppendText("Firmware Version : " + values[4] + "\n");
+                                        testLog.SelectionColor = Color.Black;
+                                    }));
+
                                 }
 
                             }
                         }
                         if (SnVerification == true && snIsVerified == false) //This for loop needs to be redone when officially done
-        {
+                        {
                             snIsVerified = true;
                             stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
                             agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
 
-                        } else if (SnVerification == false) {
+                        }
+                        else if (SnVerification == false)
+                        {
                             goto EndTest;
                         }
 
-                        reader = SendPortCommand(port, "fwversion", "UShell >");
+                        reader = SendPortCommand(port, "fwversion", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "console sts", "UShell >");
+                        reader = SendPortCommand(port, "console sts", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardEnvShow", "UShell >");
+                        reader = SendPortCommand(port, "boardEnvShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardSourceShow", "UShell >");
+                        reader = SendPortCommand(port, "boardSourceShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardPowShow", "UShell >");
+                        reader = SendPortCommand(port, "boardPowShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
                         #region Power and RSSI Validation
-                        reader = SendPortCommand(port, "boardAntPowShow", "UShell >");
+                        reader = SendPortCommand(port, "boardAntPowShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         var lines = reader.Split("\r\n");
-                        foreach (var line in lines) {
-                            if (line.Contains("TxAntSum")) {
+                        foreach (var line in lines)
+                        {
+                            if (line.Contains("TxAntSum"))
+                            {
                                 string[] values = line.Split(new String[] { " ", "|" }, StringSplitOptions.RemoveEmptyEntries);
-                                for (int i = 1; i < values.Length; i++) {
-                                    try {
+                                for (int i = 1; i < values.Length; i++)
+                                {
+                                    try
+                                    {
                                         double txValue = double.Parse(values[i]);
-                                        if (txValue < 44 || txValue > 47) {
+                                        if (txValue < 44 || txValue > 47)
+                                        {
                                             txPowerPassed = false;
-                                            if (bootcount < 0) {
+                                            if (bootcount < 0)
+                                            {
 
                                                 logger[slot].tfailed.Add(new TestFailed { TestName = "Tx Power : Path " + i, Value = txValue + "db", Result = "FAIL", ErrorCodes = "TT053" });
                                                 string failKey = "Tx Power : Path " + i;
@@ -4046,25 +3210,32 @@ namespace ORAN_Aging
                                             }
                                             logEntries.Add(($"Path {i} Failed TxAntSum={values[i]}dbm\n", Color.Red));
 
-                                        } else {
+                                        }
+                                        else
+                                        {
                                             logEntries.Add(($"Path {i} Passed TxAntSum={values[i]}dbm\n", Color.Black));
                                         }
                                     }
-                                    catch {
+                                    catch
+                                    {
                                         this.Invoke(new MethodInvoker(delegate {
                                             testLog.AppendText("Exception thrown. Send log to engineer\n");
                                         }));
                                     }
                                 }
                             }
-                            if (line.Contains("RxAntFa00")) {
+                            if (line.Contains("RxAntFa00"))
+                            {
                                 logEntries.Add(($"\n", Color.Black));
                                 string[] values = line.Split(new String[] { " ", "|" }, StringSplitOptions.RemoveEmptyEntries);
-                                for (int i = 1; i < values.Length; i++) {
+                                for (int i = 1; i < values.Length; i++)
+                                {
                                     double rssiValue = double.Parse(values[i]);
-                                    if (rssiValue > -80 || rssiValue < -109) { // ORIGINAL LIMIT -96 AND -107
+                                    if (rssiValue > -80 || rssiValue < -109)
+                                    { // ORIGINAL LIMIT -96 AND -107
 
-                                        if (bootcount < 0 && (double.Parse(values[3]) > -30 || double.Parse(values[3]) < -120)) {
+                                        if (bootcount < 0 && (double.Parse(values[3]) > -30 || double.Parse(values[3]) < -120))
+                                        {
 
                                             logger[slot].tfailed.Add(new TestFailed { TestName = "RSSI : Path " + i, Value = rssiValue, Result = "FAIL", ErrorCodes = "TT045" });
                                             string failKey = "RSSI  : Path " + i;
@@ -4080,7 +3251,9 @@ namespace ORAN_Aging
                                             testLog.SelectionColor = Color.Black;
                                         }));*/
 
-                                    } else {
+                                    }
+                                    else
+                                    {
                                         logEntries.Add(($"Path {i} Passed RSSI ={values[i]}dbm\n", Color.Black));
                                         /*this.Invoke(new MethodInvoker(delegate {
                                             testLog.AppendText("Path " + i + " Passed RSSI = " + values[i] + "dbm\n");
@@ -4090,7 +3263,8 @@ namespace ORAN_Aging
                             }
                         }
                         this.Invoke(new MethodInvoker(() => {
-                            foreach (var entry in logEntries) {
+                            foreach (var entry in logEntries)
+                            {
                                 testLog.SelectionColor = entry.Color;
                                 testLog.AppendText(entry.Text);
                             }
@@ -4101,7 +3275,7 @@ namespace ORAN_Aging
                         #endregion
 
                         #region Return Loss Check
-                        reader = SendPortCommand(port, "sts", "UShell >");
+                        reader = SendPortCommand(port, "sts", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
 
                         // Regex for capturing all numbers after "ReturnLoss"
@@ -4112,13 +3286,17 @@ namespace ORAN_Aging
 
                         Match rlMatch = rlRegex.Match(reader);
 
-                        if (rlMatch.Success) {
-                            for (int i = 1; i <= 8; i++) {
+                        if (rlMatch.Success)
+                        {
+                            for (int i = 1; i <= 8; i++)
+                            {
                                 string valueStr = rlMatch.Groups[i].Value.Trim();
                                 double returnLossValue;
 
-                                if (double.TryParse(valueStr, out returnLossValue)) {
-                                    if (returnLossValue < 10.0) {
+                                if (double.TryParse(valueStr, out returnLossValue))
+                                {
+                                    if (returnLossValue < 10.0)
+                                    {
                                         returnLossPassed = false;
                                         if (bootcount < 0) // assuming bootcount is in your scope
                                         {
@@ -4133,14 +3311,17 @@ namespace ORAN_Aging
                                         /*testLog.SelectionColor = Color.Red;
                                             testLog.AppendText($" Path {i} FailedReturnLoss =  {valueStr} dB\n");
                                             testLog.SelectionColor = Color.Black;*/
-                                    } else {
+                                    }
+                                    else
+                                    {
                                         logEntries.Add(($" Path {i} Passed ReturnLoss =  {valueStr} dB\n", Color.Black)); //Passing
                                                                                                                           //testLog.AppendText($" Path {i} Passed ReturnLoss =  {valueStr} dB\n");
                                     }
                                 }
                             }
                             this.Invoke(new MethodInvoker(() => {
-                                foreach (var entry in logEntries) {
+                                foreach (var entry in logEntries)
+                                {
                                     testLog.SelectionColor = entry.Color;
                                     testLog.AppendText(entry.Text);
                                 }
@@ -4154,18 +3335,21 @@ namespace ORAN_Aging
                         #endregion
 
                         #region Alarm Parsing 
-                        reader = SendPortCommand(port, "almsts", "UShell >");
+                        reader = SendPortCommand(port, "almsts", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
-                        string[] alarmKeywords = { "RxOverflowStep", "UDA", "OptTxFault", "RxCommFail", "HighPimLevel", "OptRxLOS" };
+                        string[] alarmKeywords = { "RxOverflowStep", "UDA", "OptTxFault", "RxCommFail", "HighPimLevel", "OptRxLOS", "***ALARM OCCUR***" };
                         string[] alarmlines = reader.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                        foreach (string line in alarmlines) {
+                        foreach (string line in alarmlines)
+                        {
                             // Only process lines with "Occur"
-                            if (line.Contains("Occur", StringComparison.OrdinalIgnoreCase)) {
+                            if (line.Contains("Occur", StringComparison.OrdinalIgnoreCase))
+                            {
 
                                 bool containsKnownKeyword = alarmKeywords.Any(keyword =>
                                     line.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
-                                if (!containsKnownKeyword) {
+                                if (!containsKnownKeyword)
+                                {
 
                                     var alarmMatch = Regex.Match(line, @"\]\s*(.*?)\s*:");
 
@@ -4176,7 +3360,8 @@ namespace ORAN_Aging
                                     string antId = idMatch.Success ? idMatch.Groups[1].Value : "N/A";
                                     string paId = idMatch.Success ? idMatch.Groups[2].Value : "N/A";
                                     AlarmpnotPresent = false;
-                                    if (bootcount < 0) {
+                                    if (bootcount < 0)
+                                    {
                                         string failKey = "Alarm Name : " + paId;
                                         string failDetails = "Type: " + alarmName;
                                         failResultscom[failKey] = failDetails;
@@ -4192,7 +3377,8 @@ namespace ORAN_Aging
                             }
                         }
                         this.Invoke(new MethodInvoker(() => {
-                            foreach (var entry in logEntries) {
+                            foreach (var entry in logEntries)
+                            {
                                 testLog.SelectionColor = entry.Color;
                                 testLog.AppendText(entry.Text);
                             }
@@ -4202,49 +3388,51 @@ namespace ORAN_Aging
                         logEntries.Clear();
                         #endregion
 
-                        reader = SendPortCommand(port, "boardPllShow", "UShell >");
+                        reader = SendPortCommand(port, "boardPllShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardAttShow", "UShell >");
+                        reader = SendPortCommand(port, "boardAttShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardOptShow", "UShell >");
+                        reader = SendPortCommand(port, "boardOptShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardPowVersionShow", "UShell >");
+                        reader = SendPortCommand(port, "boardPowVersionShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardFaShow", "UShell >");
+                        reader = SendPortCommand(port, "boardFaShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardFAMapShow", "UShell >");
+                        reader = SendPortCommand(port, "boardFAMapShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardInfoShow", "UShell >");
+                        reader = SendPortCommand(port, "boardInfoShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardVerShow", "UShell >");
+                        reader = SendPortCommand(port, "boardVerShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        reader = SendPortCommand(port, "boardHwShow", "UShell >");
+                        reader = SendPortCommand(port, "boardHwShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
                         #region Board Temp Show
-                        reader = SendPortCommand(port, "boardTempShow", "UShell >");
+                        reader = SendPortCommand(port, "boardTempShow", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         // Regex for capturing all numbers after the label
                         (Match boardMatch, Match fpgaMatch) = CleanBoardTemp(reader);
-                        if (fpgaMatch.Success) {
-                            for (int i = 1; i <= 3; i++) {
+                        if (fpgaMatch.Success)
+                        {
+                            for (int i = 1; i <= 3; i++)
+                            {
                                 logEntries.Add(("\n" + "FpgaTemp Values: " + "\n", Color.Black)); //Passing
                                 logEntries.Add(($"  Path {i}: {fpgaMatch.Groups[i].Value}\n", Color.Black)); //Passing
                                 /*this.Invoke(new MethodInvoker(delegate {
@@ -4254,8 +3442,10 @@ namespace ORAN_Aging
                             }
                         }
 
-                        if (boardMatch.Success) {
-                            for (int i = 1; i <= 3; i++) {
+                        if (boardMatch.Success)
+                        {
+                            for (int i = 1; i <= 3; i++)
+                            {
                                 logEntries.Add(("\nBoardTemp Values: \n", Color.Black)); //Passing
                                 logEntries.Add(($"  Path {i}: {fpgaMatch.Groups[i].Value}\n", Color.Black)); //Passing
                                 /*this.Invoke(new MethodInvoker(delegate {
@@ -4265,7 +3455,8 @@ namespace ORAN_Aging
                             }
                         }
                         this.Invoke(new MethodInvoker(() => {
-                            foreach (var entry in logEntries) {
+                            foreach (var entry in logEntries)
+                            {
                                 testLog.SelectionColor = entry.Color;
                                 testLog.AppendText(entry.Text);
                             }
@@ -4280,11 +3471,12 @@ namespace ORAN_Aging
                         }));
                         #endregion
 
-                        reader = SendPortCommand(port, "Alarm_Print 1", "UShell >");
+                        reader = SendPortCommand(port, "Alarm_Print 1", "UShell >", modelNumber);
                         WritetoFile(logfile, slot, reader);
                         if (testStop[slot - 1] == true || reader.Contains("!fail!") || DateTime.Now > agingTime) { goto EndTest; }
 
-                        if (bootcount > 0) {
+                        if (bootcount > 0)
+                        {
                             AlarmpnotPresent = true;
                             txPowerPassed = true;
                             rssiPassed = true;
@@ -4292,7 +3484,6 @@ namespace ORAN_Aging
                             bootcount--;
                         }
                         Thread.Sleep(25000);
-
                     }
                     while (DateTime.Now < agingTime && AlarmpnotPresent && txPowerPassed && rssiPassed && returnLossPassed);
                 #endregion
@@ -4309,8 +3500,8 @@ namespace ORAN_Aging
                     bool isConnectionLost = reader.Contains("!fail!");
                     bool isSnVerificationFailed = SnVerification == false;
                     bool isTestPassed = returnLossPassed && AlarmpnotPresent && txPowerPassed && rssiPassed && !isTestStopped && isConnectionLost == false;
-
-                    if (isTestPassed) {
+                    if (isTestPassed)
+                    {
                         logger[slot].tlog.OverallResult = "PASS";
 
                         stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
@@ -4326,13 +3517,14 @@ namespace ORAN_Aging
                         agingGridView.Rows[(int)AgingDataRow.Result].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
 
                         // Open port if not open
-                        try {
-                            if (!port.IsOpen) {
+                        try
+                        {
+                            if (!port.IsOpen)
+                            {
                                 port.Open();
                             }
                         }
                         catch (Exception ex) { }
-
                         port.WriteLine("INTF_PASwitchOFFall");
                         Thread.Sleep(1000);
                         reader = ReadPort(port);
@@ -4379,9 +3571,11 @@ namespace ORAN_Aging
                         WritetoFile(logfile, slot, reader);
 
 
-
+                    SkipLock:;
                     } // Handle connection loss
-                    else if (isConnectionLost) {
+
+                    else if (isConnectionLost)
+                    {
                         this.Invoke(new MethodInvoker(delegate {
                             testLog.AppendText("Connection to unit lost. No output detected\n");
                         }));
@@ -4389,30 +3583,36 @@ namespace ORAN_Aging
                         stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
                         agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
 
-                        if (SnVerification == true) {
+                        if (SnVerification == true)
+                        {
                             stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
                             agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
-                        } else {
+                        }
+                        else
+                        {
                             stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
                             agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = currentTestStatus[TestStatus.LostConnection];
                         }
 
                         // Reset the test status for other rows
-                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result }) {
+                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result })
+                        {
                             stopLoadingInCell(row, slot);
                             agingGridView.Rows[row].Cells[slot].Value = currentTestStatus[TestStatus.LostConnection];
                         }
 
                         logger[slot].tlog.OverallResult = "FAIL";
                     } // Handle test stop
-                    else if (isTestStopped) {
+                    else if (isTestStopped)
+                    {
                         stopLoadingInCell((int)AgingDataRow.Boot_Up, slot);
                         agingGridView.Rows[(int)AgingDataRow.Boot_Up].Cells[slot].Value = currentTestStatus[TestStatus.Stopped];
 
                         stopLoadingInCell((int)AgingDataRow.Verify_SN, slot);
                         agingGridView.Rows[(int)AgingDataRow.Verify_SN].Cells[slot].Value = SnVerification ? currentTestStatus[TestStatus.IsPassing] : currentTestStatus[TestStatus.Stopped];
 
-                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result }) {
+                        foreach (var row in new[] { (int)AgingDataRow.RF_Parameters, (int)AgingDataRow.Alarms, (int)AgingDataRow.Result })
+                        {
                             stopLoadingInCell(row, slot);
                             agingGridView.Rows[row].Cells[slot].Value = currentTestStatus[TestStatus.Stopped];
                         }
@@ -4421,24 +3621,29 @@ namespace ORAN_Aging
                     }
 
                     // Handle general failures
-                    else {
+                    else
+                    {
                         logger[slot].tlog.OverallResult = "FAIL";
 
                         // Handle RF Parameters failure
-                        if (!txPowerPassed || !rssiPassed) {
+                        if (!txPowerPassed || !rssiPassed)
+                        {
                             stopLoadingInCell((int)AgingDataRow.RF_Parameters, slot);
                             agingGridView.Rows[(int)AgingDataRow.RF_Parameters].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
 
-                            if (AlarmpnotPresent) {
+                            if (AlarmpnotPresent)
+                            {
                                 stopLoadingInCell((int)AgingDataRow.Alarms, slot);
                                 agingGridView.Rows[(int)AgingDataRow.Alarms].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
                             }
                         }
 
                         // Handle Alarms failure
-                        if (!AlarmpnotPresent) {
+                        if (!AlarmpnotPresent)
+                        {
                             Task.Run(() => { MessageBox.Show(serialNumber + " is throwing alarms. Send to repair"); });
-                            if (txPowerPassed && rssiPassed) {
+                            if (txPowerPassed && rssiPassed)
+                            {
                                 stopLoadingInCell((int)AgingDataRow.RF_Parameters, slot);
                                 agingGridView.Rows[(int)AgingDataRow.RF_Parameters].Cells[slot].Value = currentTestStatus[TestStatus.IsPassing];
                             }
@@ -4448,41 +3653,24 @@ namespace ORAN_Aging
                         }
 
                         // Handle Result failure
-                        if (!AlarmpnotPresent || !txPowerPassed || !rssiPassed) {
+                        if (!AlarmpnotPresent || !txPowerPassed || !rssiPassed)
+                        {
                             stopLoadingInCell((int)AgingDataRow.Result, slot);
                             agingGridView.Rows[(int)AgingDataRow.Result].Cells[slot].Value = currentTestStatus[TestStatus.Failed];
                         }
                     }
                     #endregion
 
-                    #region T Drive Log Transfer
-                    try {
-                        if (!string.IsNullOrEmpty(LogFileList[1])) {
-                            string driveRoot = IOPath.GetPathRoot(LogFileList[1]); // usually "T:\"
-                            if (Directory.Exists(driveRoot)) // T drive must be mapped
-                            {
-                                File.Copy(logfile, LogFileList[1], overwrite: true);
-                            } else {
-                                this.Invoke(new MethodInvoker(delegate {
-                                    testLog.AppendText("T drive unavailable\n");
-                                }));
-                            }
-                        }
-                    }
-                    catch (Exception ex) {
-                        this.Invoke(new MethodInvoker(delegate {
-                            testLog.AppendText($"Log copy error: {ex.Message}\n");
-                        }));
-                    }
-                    #endregion
-
                     #region Fail Test Directory 
-                    if (!isTestPassed) {
-                        try {
+                    if (!isTestPassed)
+                    {
+                        try
+                        {
                             // To display the dictionary contents in the RichTextBox
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.AppendText("\r\n" + "********** Fail Results **********" + "\r\n");
-                                foreach (var entry in failResultscom) {
+                                foreach (var entry in failResultscom)
+                                {
                                     testLog.SelectionColor = Color.Red;
                                     testLog.AppendText($"Test: {entry.Key} => {entry.Value}\r\n");
                                     testLog.SelectionColor = Color.Black;
@@ -4490,7 +3678,8 @@ namespace ORAN_Aging
 
                                 // Write to log file
                                 string failResultsText = "";
-                                foreach (var entry in failResultscom) {
+                                foreach (var entry in failResultscom)
+                                {
                                     failResultsText += $"Test: {entry.Key} => {entry.Value}\r\n";
                                 }
                                 File.AppendAllText(logfile, "\nElapsed Time: " + ReturnTimeStamp(slot) + "\n" + failResultsText + "\n");
@@ -4498,7 +3687,8 @@ namespace ORAN_Aging
                             }));
 
                         }
-                        catch (Exception ex) {
+                        catch (Exception ex)
+                        {
                             WritetoFile(logfile, slot, ex.ToString());
                         }
                         this.Invoke(new MethodInvoker(delegate {
@@ -4507,7 +3697,9 @@ namespace ORAN_Aging
                             testLog.SelectionColor = Color.Black;
                         }));
 
-                    } else {
+                    }
+                    else
+                    {
                         this.Invoke(new MethodInvoker(delegate {
                             testLog.SelectionColor = Color.Green;
                             testLog.AppendText("\n" + "Aging Test Pass...!" + "\n");
@@ -4518,8 +3710,10 @@ namespace ORAN_Aging
                     #endregion
 
                     #region OLP Data Entry 
-                    if (testStop[slot - 1] == false && !reader.Contains("!fail!")) {
-                        if (txPowerPassed == true && rssiPassed == true && returnLossPassed == true && AlarmpnotPresent == true) {
+                    if (testStop[slot - 1] == false && !reader.Contains("!fail!"))
+                    {
+                        if (txPowerPassed == true && rssiPassed == true && returnLossPassed == true && AlarmpnotPresent == true)
+                        {
                             logger[slot].tfailed.Add(new TestFailed { TestName = "Tx Power 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
                             logger[slot].tfailed.Add(new TestFailed { TestName = "RSSI 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
                             logger[slot].tfailed.Add(new TestFailed { TestName = "Return Loss 1 TO 8 : ", Result = "PASS", ErrorCodes = "NA" });
@@ -4534,18 +3728,21 @@ namespace ORAN_Aging
                         logger[slot].tlog.BurnHr = modelSelector.hours.ToString();
                         //logger[slot].tlog.Firmware = FirmwareVersion.ToString();
                         logger[slot].tlog.Model = modelNumber.ToString();
-                        logger[slot].tlog.Locations = "LakeSide 701";
+                        logger[slot].tlog.Locations = "Facility 1";
 
                         bool Ftp_FileisCopied = logger[slot].WriteToLog(serialNumber);
                         logger[slot].tfailed.Clear();
 
-                        if (Ftp_FileisCopied == true) {
+                        if (Ftp_FileisCopied == true)
+                        {
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.SelectionColor = Color.DarkBlue;
                                 testLog.AppendText("Json Copied to the Server...!\n");
                                 testLog.SelectionColor = Color.Black;
                             }));
-                        } else {
+                        }
+                        else
+                        {
                             this.Invoke(new MethodInvoker(delegate {
                                 testLog.SelectionColor = Color.Red;
                                 testLog.AppendText("Unable to copy the file to the Server...!\n");
@@ -4565,7 +3762,7 @@ namespace ORAN_Aging
                     + "** Serial Number: " + serialNumber + Environment.NewLine
                     + "** Model Number:  " + modelNumber + Environment.NewLine
                     + "** Slot:          " + slot + Environment.NewLine
-                    + "** App Ver.       V5.4" + Environment.NewLine
+                    + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                     + "** Com Port  " + port.PortName + Environment.NewLine
                     + "** Aging Location:          " + location + Environment.NewLine
                     + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
@@ -4579,7 +3776,7 @@ namespace ORAN_Aging
                    + "** Serial Number: " + serialNumber + Environment.NewLine
                    + "** Model Number:  " + modelNumber + Environment.NewLine
                    + "** Slot:          " + slot + Environment.NewLine
-                   + "** App Ver.       V5.4" + Environment.NewLine
+                   + "** App Ver.       " + AppConstants.AppVersion + Environment.NewLine
                    + "** Com Port  " + port.PortName + Environment.NewLine
                    + "** Aging Location:          " + location + Environment.NewLine
                    + "** Burn Hours:          " + modelSelector.hours + Environment.NewLine
@@ -4587,19 +3784,22 @@ namespace ORAN_Aging
 
                     File.AppendAllText(logfile, "\nTest Ended: " + ReturnTimeStamp(slot));
 
-                    try {
+                    try
+                    {
                         string failResultsText = "";
                         this.Invoke(new MethodInvoker(delegate {
                             testLog.AppendText("\r\n" + "********** Fail Results **********" + "\r\n");
 
-                            foreach (var entry in failResultscom) {
+                            foreach (var entry in failResultscom)
+                            {
                                 testLog.SelectionColor = Color.Red;
                                 testLog.AppendText($"Test: {entry.Key} => {entry.Value}\r\n");
                                 testLog.SelectionColor = Color.Black;
                             }
 
                             // Write to log file
-                            foreach (var entry in failResultscom) {
+                            foreach (var entry in failResultscom)
+                            {
                                 failResultsText += $"Test: {entry.Key} => {entry.Value}\r\n";
                             }
                             testLog.AppendText("\r\n" + "***********************************" + "\r\n");
@@ -4607,10 +3807,26 @@ namespace ORAN_Aging
                         WritetoFile(logfile, slot, failResultsText);
                     } //This bracket is to end the  using (SerialPort port = new SerialPort) on line 3241
                     catch { }
+                    #region T Drive Log Transfer
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(LogFileList[1]))
+                        {
+                            string destDir = IOPath.GetDirectoryName(LogFileList[1]);
+                            Directory.CreateDirectory(destDir);
+                            File.Copy(logfile, LogFileList[1], true);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Task.Run(() => { MessageBox.Show("Failed to copy log to T: drive\n" + ex.ToString()); });
+                    }
+                    #endregion
                     port.Close();
                 }
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 this.Invoke(new MethodInvoker(delegate {
                     testLog.AppendText($"Log copy error: {ex.Message}\n");
                 }));
@@ -4619,7 +3835,8 @@ namespace ORAN_Aging
         }
         #endregion
 
-        private void StartBackgroundTask(int slot) {
+        private void StartBackgroundTask(int slot)
+        {
             // Run sequentially to avoid overlapping column mixups
             Task.Run(() => {
                 showLoadingInCell((int)AgingDataRow.Boot_Up, slot);
@@ -4630,15 +3847,21 @@ namespace ORAN_Aging
             });
         }
 
-        private void Form1_FormClosing(object sender, FormClosingEventArgs e) {
-            for (int i = 1; i < agingGridView.ColumnCount; i++) {
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            for (int i = 1; i < agingGridView.ColumnCount; i++)
+            {
                 DataGridViewCell cell = agingGridView.Rows[(int)AgingDataRow.Result].Cells[i];
-                if (cell.Tag != null) {
+                if (cell.Tag != null)
+                {
                     var formClosing = MessageBox.Show("Units are still running\nAre you sure you want to close?", "", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                    if (formClosing == DialogResult.Yes) {
+                    if (formClosing == DialogResult.Yes)
+                    {
                         e.Cancel = false;
                         break;
-                    } else {
+                    }
+                    else
+                    {
                         e.Cancel = true;
                         break;
                     }
@@ -4646,23 +3869,44 @@ namespace ORAN_Aging
             }
         }
 
-        private void button1_Click(object sender, EventArgs e) {
+        private void button1_Click(object sender, EventArgs e)
+        {
             DialogResult result = MessageBox.Show("Are you sure you want to exit?", "Confirm Exit", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
 
             // Check if the user clicked "Yes"
-            if (result == DialogResult.Yes) {
+            if (result == DialogResult.Yes)
+            {
                 // Close the form
                 exitisclicked = true;
                 this.Close();
             }
             // If the user clicked "No", do nothing and keep the form open
-            else {
+            else
+            {
 
             }
         }
 
-        private void button2_Click(object sender, EventArgs e) {
+        // Manual test hook - copies a known sample file through the path/format logic
+        // instead of waiting on a live unit, useful when a string variable's format
+        // doesn't match what's expected and I need to isolate whether it's a parsing
+        // issue vs. a hardware/timing issue.
+        private void button2_Click(object sender, EventArgs e)
+        {
+            string localFile = @"C:\Log\CarrierA_Lo_Lo_XL\SAMPLE0001_Aging_01_01_2026__00_00_00000.txt";
+            string destDir = @"T:\Acme Test Logs\5G RU ORAN\CarrierA FAT LOLO\Aging\";
+            string destFile = IOPath.Combine(destDir, IOPath.GetFileName(localFile));
 
+            try
+            {
+                Directory.CreateDirectory(destDir);
+                File.Copy(localFile, destFile, true);
+                MessageBox.Show($"File copied successfully to:\n{destFile}", "T: Drive Copy Test", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed: " + ex.ToString(), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

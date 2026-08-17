@@ -1,7 +1,7 @@
-﻿namespace ORAN_Aging
+namespace ORAN_Aging
 {
     partial class Form1
-    {
+    { 
         /// <summary>
         ///  Required designer variable.
         /// </summary>
@@ -24,8 +24,7 @@
         ///  Required method for Designer support - do not modify
         ///  the contents of this method with the code editor.
         /// </summary>
-        private void InitializeComponent()
-        {
+        private void InitializeComponent() {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             pictureBox1 = new PictureBox();
@@ -177,7 +176,7 @@
             Controls.Add(pictureBox1);
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
-            Text = "ORAN Aging V 5.4";
+            Text = "ORAN Aging V 6.1";
             FormClosing += Form1_FormClosing;
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)agingGridView).EndInit();

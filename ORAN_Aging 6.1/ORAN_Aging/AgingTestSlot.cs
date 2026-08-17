@@ -4,12 +4,6 @@ using System.Windows.Forms;
 
 namespace ORAN_Aging
 {
-    // AgingTestSlot.cs
-    // Author: James H.
-    // Created: 2025-11-23
-    // Notes: Implemented and reviewed by James H.
-    //        Generated with assistance from GitHub Copilot (AI-assisted).
-    // Maintainer: James H.
     public class AgingTestSlot : IDisposable
     {
         public int ColumnIndex { get; }

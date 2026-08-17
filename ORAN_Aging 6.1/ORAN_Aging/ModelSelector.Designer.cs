@@ -31,10 +31,11 @@
             radioButton2 = new RadioButton();
             radioButton3 = new RadioButton();
             radioButton4 = new RadioButton();
-            comboBox1 = new ComboBox();
             button1 = new Button();
             comboBox2 = new ComboBox();
             Exit = new Button();
+            groupBox1 = new GroupBox();
+            groupBox1.SuspendLayout();
             SuspendLayout();
             // 
             // label1
@@ -42,18 +43,18 @@
             label1.AutoSize = true;
             label1.BackColor = Color.White;
             label1.Font = new Font("Segoe UI", 20.25F, FontStyle.Regular, GraphicsUnit.Point);
-            label1.Location = new Point(144, 9);
+            label1.Location = new Point(6, 19);
             label1.Name = "label1";
-            label1.Size = new Size(374, 37);
+            label1.Size = new Size(426, 37);
             label1.TabIndex = 0;
-            label1.Text = "Please Select the Radio Model";
+            label1.Text = "Please Select the Number of Hours";
             // 
             // radioButton1
             // 
             radioButton1.AutoSize = true;
             radioButton1.BackColor = Color.White;
             radioButton1.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            radioButton1.Location = new Point(144, 60);
+            radioButton1.Location = new Point(19, 59);
             radioButton1.Name = "radioButton1";
             radioButton1.Size = new Size(82, 25);
             radioButton1.TabIndex = 1;
@@ -67,7 +68,7 @@
             radioButton2.AutoSize = true;
             radioButton2.BackColor = Color.White;
             radioButton2.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            radioButton2.Location = new Point(236, 60);
+            radioButton2.Location = new Point(111, 59);
             radioButton2.Name = "radioButton2";
             radioButton2.Size = new Size(82, 25);
             radioButton2.TabIndex = 2;
@@ -81,7 +82,7 @@
             radioButton3.AutoSize = true;
             radioButton3.BackColor = Color.White;
             radioButton3.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            radioButton3.Location = new Point(341, 60);
+            radioButton3.Location = new Point(216, 59);
             radioButton3.Name = "radioButton3";
             radioButton3.Size = new Size(82, 25);
             radioButton3.TabIndex = 3;
@@ -95,7 +96,7 @@
             radioButton4.AutoSize = true;
             radioButton4.BackColor = Color.White;
             radioButton4.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            radioButton4.Location = new Point(445, 60);
+            radioButton4.Location = new Point(320, 59);
             radioButton4.Name = "radioButton4";
             radioButton4.Size = new Size(88, 25);
             radioButton4.TabIndex = 4;
@@ -103,19 +104,6 @@
             radioButton4.Text = "12 hours";
             radioButton4.UseVisualStyleBackColor = false;
             radioButton4.CheckedChanged += radioButton4_CheckedChanged;
-            // 
-            // comboBox1
-            // 
-            comboBox1.Enabled = false;
-            comboBox1.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point);
-            comboBox1.FormattingEnabled = true;
-            comboBox1.Items.AddRange(new object[] { "ORAN PCS", "ORAN LOLO", "ORAN FAT LOLO", "DISH DUAL", "DISH TRI" });
-            comboBox1.Location = new Point(199, 103);
-            comboBox1.Name = "comboBox1";
-            comboBox1.Size = new Size(334, 29);
-            comboBox1.TabIndex = 5;
-            comboBox1.Text = "Select Model";
-            comboBox1.Visible = false;
             // 
             // button1
             // 
@@ -134,7 +122,7 @@
             comboBox2.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point);
             comboBox2.FormattingEnabled = true;
             comboBox2.Items.AddRange(new object[] { "" });
-            comboBox2.Location = new Point(199, 168);
+            comboBox2.Location = new Point(193, 166);
             comboBox2.MaxDropDownItems = 100;
             comboBox2.Name = "comboBox2";
             comboBox2.Size = new Size(334, 29);
@@ -153,38 +141,48 @@
             Exit.UseVisualStyleBackColor = true;
             Exit.Click += Exit_Click;
             // 
+            // groupBox1
+            // 
+            groupBox1.Controls.Add(label1);
+            groupBox1.Controls.Add(radioButton3);
+            groupBox1.Controls.Add(radioButton1);
+            groupBox1.Controls.Add(radioButton2);
+            groupBox1.Controls.Add(radioButton4);
+            groupBox1.Location = new Point(139, 12);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(431, 103);
+            groupBox1.TabIndex = 9;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "Number of hours";
+            // 
             // ModelSelector
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
             ClientSize = new Size(684, 300);
+            Controls.Add(groupBox1);
             Controls.Add(Exit);
             Controls.Add(comboBox2);
             Controls.Add(button1);
-            Controls.Add(comboBox1);
-            Controls.Add(radioButton4);
-            Controls.Add(radioButton3);
-            Controls.Add(radioButton2);
-            Controls.Add(radioButton1);
-            Controls.Add(label1);
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "ModelSelector";
             Text = "ModelSelector";
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
 
         private Label label1;
-        private RadioButton radioButton1;
-        private RadioButton radioButton2;
-        private RadioButton radioButton3;
-        private RadioButton radioButton4;
-        private ComboBox comboBox1;
+        public RadioButton radioButton1;
+        public RadioButton radioButton2;
+        public RadioButton radioButton3;
+        public RadioButton radioButton4;
         private Button button1;
         private ComboBox comboBox2;
         private Button Exit;
+        private GroupBox groupBox1;
     }
 }
